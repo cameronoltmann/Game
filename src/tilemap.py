@@ -4,11 +4,14 @@ Created on Nov 11, 2012
 @author: Grud
 '''
 import pygame
-
-resource_path='res/'
 import pickle
 
+class MapTile(object):
+    def __init__(self):
+        pass
+        
 class Map(object):
+    resource_path = 'res/'
     '''
     classdocs
     '''
@@ -22,7 +25,7 @@ class Map(object):
     
     def load_tiles(self, tile_names, tile_size=None):
         self.tile_names = list(tile_names)
-        self.tiles_raw = [pygame.image.load(resource_path+tile) for tile in tile_names]
+        self.tiles_raw = [pygame.image.load(Map.resource_path+tile) for tile in tile_names]
         if tile_size:
             self.tile_size = tile_size
         self.set_tile_size(self.tile_size)
@@ -100,7 +103,7 @@ class Map(object):
 
     @classmethod
     def load(cls, filename):
-        data = pickle.load(open(resource_path+filename, 'rb'))
+        data = pickle.load(open(Map.resource_path+filename, 'rb'))
         m = Map()
         for name, value in data.iteritems():
             setattr(m, name, value)
@@ -118,5 +121,5 @@ class Map(object):
                 'grid': self.grid,
                 'tile_names': self.tile_names,
                 }
-        pickle.dump(data, open(resource_path+self.filename, 'wb'))
+        pickle.dump(data, open(Map.resource_path+self.filename, 'wb'))
 
