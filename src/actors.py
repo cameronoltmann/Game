@@ -12,8 +12,8 @@ class Actor(pygame.sprite.Sprite):
     '''
     classdocs
     '''
-    init_vals = {'sense_radius': 100,
-                 'resource_path': 'res/'
+    initVals = {'sense_radius': 100,
+                 'resourcePath': 'res/'
 
                  } 
 
@@ -37,7 +37,7 @@ class Ball(Actor):
     def __init__(self):
         super(Ball, self).__init__()
         self.speed = [random.randrange(4), random.randrange(4)]
-        self.image = pygame.image.load(self.resource_path+'ball.gif')
+        self.image = pygame.image.load(self.resourcePath+'ball.gif')
         self.rect = self.image.get_rect()
 
     def update(self):
