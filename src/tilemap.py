@@ -5,8 +5,11 @@ Created on Nov 11, 2012
 '''
 import pygame
 import pickle
+import util
 
 BLOCKSIZE = 256
+TILE_OPEN = 0
+TILE_WALL = 1
 
 class MapTile(object):
     def __init__(self):
@@ -17,9 +20,9 @@ class Map(object):
     '''
     classdocs
     '''
-    def __init__(self, size=(20, 20), tileSize=32, fill=0, wall=1):
+    def __init__(self, size=(20, 20), fill=TILE_OPEN, border=TILE_WALL):
         self.fill = fill
-        self.wall = wall
+        self.wall = border
         self.setSize(size)
         self.clearMap()
         self.tilesRaw = None
@@ -27,7 +30,8 @@ class Map(object):
         self.scale = 1.0
         self.maxScale = 2.0
         self.minScale = 0.05
-        self.setTileSize(tileSize)
+        self.setViewpoint(util.scaleCoords(self.getSize(), 0.5))
+        self.setTileSize(BLOCKSIZE)
     
     def loadTiles(self, tileNames, tileSize=None):
         self.tileNames = list(tileNames)
@@ -42,6 +46,19 @@ class Map(object):
         if self.tiles:
             self.tilesScaled = [pygame.transform.scale(tile, (self.tileSize, self.tileSize)) for tile in self.tiles]
 
+    def setViewpoint(self, pos):
+        x, y = pos
+        x = max(x, BLOCKSIZE/2)
+        x = min(x, self.width*BLOCKSIZE - BLOCKSIZE/2)
+        y = max(y, BLOCKSIZE/2)
+        y = min(y, self.width*BLOCKSIZE - BLOCKSIZE/2)
+        self.viewpoint = (x, y)
+        return self.viewpoint
+
+    def getViewpoint(self):
+        return self.viewpoint
+    
+            
     def setSize(self, size):
         self.size = self.width, self.height = size
         self.clearMap()
@@ -62,49 +79,60 @@ class Map(object):
             self.grid[self.width*j] = self.wall
             self.grid[self.width*j + self.width-1] = self.wall
     
-    def render(self, target, centre, scale):
+    def transformToScreenspace(self, target, pos):
+        x, y = pos
+        centre = self.viewpoint
+        xCentre, yCentre = centre
+        viewCentre = viewXCentre, viewYCentre = (target.get_rect()[2]/2, target.get_rect()[3]/2)
+        screenXPos = viewXCentre - ((xCentre-x) * self.tileSize/BLOCKSIZE)
+        screenYPos = viewYCentre - ((yCentre-y) * self.tileSize/BLOCKSIZE)
+        return (screenXPos, screenYPos)
+    
+    def transformToMapspace(self, target, pos):  
+        x, y = pos
+        centre = self.viewpoint
+        xCentre, yCentre = centre
+        viewCentre = viewXCentre, viewYCentre = (target.get_rect()[2]/2, target.get_rect()[3]/2)
+        mapXPos = xCentre - ((viewXCentre-x) * BLOCKSIZE/self.tileSize)
+        mapYPos = yCentre - ((viewYCentre-y) * BLOCKSIZE/self.tileSize)
+        return (mapXPos, mapYPos)
+    
+    def render(self, target):
+        centre = self.viewpoint
         xCentre, yCentre = centre
         mapSize = mapWidth, mapHeight = self.getSize()
         r = l, t, w, h = target.get_rect()
         viewCentre = viewXCentre, viewYCentre = (w/2, h/2)
         viewSize = viewWidth, viewHeight = (w, h)
-        xMin = max(xCentre-viewXCentre/scale, 0)
-        yMin = max(yCentre-viewYCentre/scale, 0)
-        xMax = min(xCentre+viewXCentre/scale, mapWidth-1)
-        yMax = min(yCentre+viewYCentre/scale, mapHeight-1)
+        xMin = max(xCentre-viewXCentre/self.scale, 0)
+        yMin = max(yCentre-viewYCentre/self.scale, 0)
+        xMax = min(xCentre+viewXCentre/self.scale, mapWidth-1)
+        yMax = min(yCentre+viewYCentre/self.scale, mapHeight-1)
         leftBlock, topBlock = self.tileByPos((xMin, yMin))
         rightBlock, bottomBlock = self.tileByPos((xMax, yMax))
         self.setTileSize
         target.fill((0,0,0))
         for y in range(topBlock, bottomBlock+1):
             for x in range(leftBlock, rightBlock+1):
-                self.renderTile(target, (x, y), centre)
+                self.renderTile(target, (x, y))
 
-    def renderTile(self, target, tile, centre):
+    def renderTile(self, target, tile):
+        centre = self.viewpoint
         x, y = tile
-        xCentre, yCentre = centre
-        centreBlock = (xCentre/BLOCKSIZE, yCentre/BLOCKSIZE)
-        centreBlockOffset = (xCentre % BLOCKSIZE, yCentre % BLOCKSIZE)
-        viewCentre = viewXCentre, viewYCentre = (target.get_rect()[2]/2, target.get_rect()[3]/2)
-        centreBlockULC = (viewXCentre-(centreBlockOffset[0]/BLOCKSIZE*self.tileSize), viewYCentre-(centreBlockOffset[1]/BLOCKSIZE*self.tileSize))
-        left = centreBlockULC[0]-(centreBlock[0]-tile[0])*self.tileSize
-        top = centreBlockULC[1]-(centreBlock[1]-tile[1])*self.tileSize
-        tRect = pygame.rect.Rect(left, top, self.tileSize, self.tileSize)
-        target.blit(self.tilesScaled[self.grid[x+y*self.width]],tRect)
+        tileULC = util.scaleCoords(tile, BLOCKSIZE)
+        tileScreenULC = self.transformToScreenspace(target, tileULC)
+        tileRect = pygame.rect.Rect(tileScreenULC, (self.tileSize, self.tileSize))
+        target.blit(self.tilesScaled[self.grid[x+y*self.width]],tileRect)
         
                 
     def setScale(self, scale):
-        if scale>self.maxScale:
-            scale = self.maxScale
-        if scale<self.minScale:
-            scale = self.minScale
-        if scale != self.scale:
+        if self.minScale <= scale <= self.maxScale and scale != self.scale:
             self.scale = scale
             self.setTileSize(int(BLOCKSIZE*scale))
-        return scale
+        return self.scale
         
 
-    def fit(self, width, height):
+    def fitTo(self, width, height):
         maxTileWidth = width/self.width
         maxTileHeight = height/self.height 
         maxTileSize = min(maxTileWidth, maxTileHeight)
@@ -132,6 +160,8 @@ class Map(object):
         m = Map()
         for name, value in data.iteritems():
             setattr(m, name, value)
+        m.setSize(m.size)
+        m.grid = data['grid']
         m.filename = filename
         m.loadTiles(m.tileNames)
         return m
@@ -139,6 +169,7 @@ class Map(object):
     def save(self, filename=None):
         if filename:
             self.filename = filename
+        '''
         data = {'fill': self.fill,
                 'wall': self.wall,
                 'size': self.size,
@@ -146,5 +177,10 @@ class Map(object):
                 'grid': self.grid,
                 'tileNames': self.tileNames,
                 }
+        '''
+        data = self.__dict__
+        del data['tiles']
+        del data['tilesRaw']
+        del data['tilesScaled']
         pickle.dump(data, open(Map.resourcePath+self.filename, 'wb'))
 

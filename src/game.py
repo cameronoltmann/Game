@@ -10,6 +10,7 @@ import random
 import logging
 import time
 import tilemap
+import util
 from actors import *
 
 
@@ -17,7 +18,7 @@ BLACK = (0, 0, 0)
 RED = (255, 0, 0)
 GREEN = (0, 255, 0)
 ZOOMFACTOR = 1.2
-
+SCROLLSPEED = 1.5
 
 class Game():
     resourcePath = 'res/'
@@ -52,11 +53,13 @@ class Game():
         else:
             cursor_color=GREEN
         if mapTile:
-            tile_rect = pygame.rect.Rect(self.mapPortRect[0]+mapTile[0]*self.level.tileSize,
-                         self.mapPortRect[1]+mapTile[1]*self.level.tileSize,
+            tileULC = util.scaleCoords(mapTile, tilemap.BLOCKSIZE)
+            screenULC = self.level.transformToScreenspace(self.mapPort, tileULC)
+            tile_rect = pygame.rect.Rect(screenULC[0],
+                         screenULC[1],
                          self.level.tileSize,
                          self.level.tileSize)
-            pygame.draw.rect(self.screen, cursor_color, tile_rect, max((self.level.tileSize/16,1)))
+            pygame.draw.rect(self.mapPortOverlay, cursor_color, tile_rect, max((self.level.tileSize/8,2)))
         #self.balls.update()
         #self.balls.draw(self.screen)
         pygame.display.flip()
@@ -65,8 +68,10 @@ class Game():
         '''
         Return map tile corresponding to screen coordinates
         '''
-        mapPos = (pos[0]-self.mapPortRect[0], pos[1]-self.mapPortRect[1])
-        return self.level.tileByViewportPos(mapPos)
+        if self.mapPortRect.collidepoint(pos):
+            pos = (pos[0]-self.mapPortRect[0], pos[1]-self.mapPortRect[1])
+            mapPos = self.level.transformToMapspace(self.mapPort, pos)
+            return self.level.tileByPos(mapPos)
         
     def gameLoop(self):
         while not self.done:
@@ -88,20 +93,21 @@ class Game():
                     self.keyState[event.key] = False
                 elif event.type == pygame.MOUSEBUTTONDOWN:
                     self.mouseState[event.button] = True
-                    if mapTile:
+                    if self.mapPortRect.collidepoint(event.pos):
                         if event.button == 4: # wheel up
                             self.mapViewScale = self.level.setScale(self.mapViewScale*ZOOMFACTOR)
-                            self.level.render(self.mapPort, self.mapViewCentre, self.mapViewScale)
+                            self.level.render(self.mapPort)
                         elif event.button == 5: # wheel down
                             self.mapViewScale = self.level.setScale(self.mapViewScale/ZOOMFACTOR)
-                            self.level.render(self.mapPort, self.mapViewCentre, self.mapViewScale)
+                            self.level.render(self.mapPort)
+                    if mapTile:
                         if self.editMode and event.button==1:
-                            if self.level.get_tile(mapTile) == self.level.fill:
-                                self.drawing = self.level.wall+100
+                            if self.level.get_tile(mapTile) == tilemap.TILE_OPEN:
+                                self.drawing = tilemap.TILE_WALL+100
                             else:
-                                self.drawing = self.level.fill+100
+                                self.drawing = tilemap.TILE_OPEN+100
                             self.level.setTile(mapTile, self.drawing-100)
-                            self.level.renderTile(self.mapPort, mapTile, self.mapViewCentre)
+                            self.level.renderTile(self.mapPort, mapTile)
                 elif event.type == pygame.MOUSEBUTTONUP:
                     self.mouseState[event.button] = False
                     if mapTile and event.button==1:
@@ -109,7 +115,20 @@ class Game():
                 elif event.type == pygame.MOUSEMOTION:
                     if mapTile and self.drawing:
                         self.level.setTile(mapTile, self.drawing-100)
-                        self.level.renderTile(self.mapPort, mapTile, self.mapViewCentre)
+                        self.level.renderTile(self.mapPort, mapTile)
+            xMove = yMove = 0
+            if self.keyState.get(pygame.K_LEFT):
+                xMove -= SCROLLSPEED/self.mapViewScale
+            if self.keyState.get(pygame.K_UP):
+                yMove -= SCROLLSPEED/self.mapViewScale
+            if self.keyState.get(pygame.K_RIGHT):
+                xMove += SCROLLSPEED/self.mapViewScale
+            if self.keyState.get(pygame.K_DOWN):
+                yMove += SCROLLSPEED/self.mapViewScale
+            if xMove or yMove:
+                self.mapViewpoint = self.level.setViewpoint(util.addCoords(self.mapViewpoint, (xMove, yMove)))
+                self.level.render(self.mapPort)
+            
             self.render()
             self.framecount += 1
             curTime = time.time()
@@ -132,17 +151,18 @@ class Game():
             self.level = tilemap.Map.load('map.p')
             logging.info(self.level)
         except:
-            self.level = tilemap.Map()
+            self.level = tilemap.Map((50, 50), tilemap.TILE_WALL)
             self.level.filename = 'map.p'
             self.level.loadTiles(['tile0.jpg', 'tile1.jpg'])
-        self.mapPortRect = self.level.fit(self.width, self.height)
+        self.mapPortRect = self.level.fitTo(self.width, self.height)
         mapSize = mapWidth, mapHeight = self.level.getSize()
         self.mapViewScale = (1.0*self.mapPortRect[2]/mapWidth)
         self.level.setScale(self.mapViewScale)
-        self.mapViewCentre = (mapWidth/2, mapHeight/2)
+        self.mapViewpoint = self.level.getViewpoint()
         logging.info("Scale: %s" % self.mapViewScale)
         self.mapPort = self.background.subsurface(self.mapPortRect)
-        self.level.render(self.mapPort, self.mapViewCentre, self.mapViewScale)
+        self.mapPortOverlay = self.screen.subsurface(self.mapPortRect)
+        self.level.render(self.mapPort)
         self.framecount=0
         self.startTime=time.time()
         self.editMode = False
