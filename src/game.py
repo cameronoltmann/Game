@@ -154,6 +154,7 @@ class Game():
             self.level = tilemap.Map((50, 50), tilemap.TILE_WALL)
             self.level.filename = 'map.p'
             self.level.loadTiles(['tile0.jpg', 'tile1.jpg'])
+            self.level.loadActors(['zombie.png', 'civilian.png', 'civilian.png'])
         self.mapPortRect = self.level.fitTo(self.width, self.height)
         mapSize = mapWidth, mapHeight = self.level.getSize()
         self.mapViewScale = (1.0*self.mapPortRect[2]/mapWidth)

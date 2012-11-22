@@ -26,13 +26,6 @@ class Actor(pygame.sprite.Sprite):
         for arg in kwargs:
             setattr(cls, arg, kwargs[arg])
 
-class Zombie(Actor):
-    def __init(self):
-        super(Zombie, self).__init__()
-        self.speed = (0,0)
-        self.image = pygame.image.load('ball.gif')
-        self.rect = self.image.get_rect()
-
 class Ball(Actor):
     def __init__(self):
         super(Ball, self).__init__()
@@ -48,4 +41,11 @@ class Ball(Actor):
             self.speed[0] = -self.speed[0]
         if self.rect.top <0 or self.rect.bottom > height:
             self.speed[1] = -self.speed[1]
+
+class Zombie(Actor):
+    def __init(self):
+        super(Zombie, self).__init__()
+        self.speed = (0,0)
+        self.image = pygame.image.load('ball.gif')
+        self.rect = self.image.get_rect()
 

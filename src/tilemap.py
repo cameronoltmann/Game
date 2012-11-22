@@ -8,6 +8,7 @@ import pickle
 import util
 
 BLOCKSIZE = 256
+ACTORSIZE = 128
 TILE_OPEN = 0
 TILE_WALL = 1
 
@@ -25,8 +26,8 @@ class Map(object):
         self.wall = border
         self.setSize(size)
         self.clearMap()
-        self.tilesRaw = None
         self.tiles = None
+        self.actors = None
         self.scale = 1.0
         self.maxScale = 2.0
         self.minScale = 0.05
@@ -40,11 +41,25 @@ class Map(object):
         if tileSize:
             self.tileSize = tileSize
         self.setTileSize(self.tileSize)
+
+    def loadActors(self, actorNames):
+        self.actorNames = list(actorNames)
+        self.actorsRaw = [pygame.image.load(Map.resourcePath+actor) for actor in self.actorNames]
+        self.actors = [pygame.transform.scale(actor, (ACTORSIZE, ACTORSIZE)) for actor in self.actorsRaw]
+        self.actorsScaled = self.resizeImages(self.actors, self.actorSize)
         
+
+    def resizeImages(self, images, size):
+        return [pygame.transform.scale(image, (size, size)) for image in images]
+    
     def setTileSize(self, tileSize):
         self.tileSize = tileSize
+        self.actorSize = self.tileSize*(ACTORSIZE/BLOCKSIZE)
         if self.tiles:
-            self.tilesScaled = [pygame.transform.scale(tile, (self.tileSize, self.tileSize)) for tile in self.tiles]
+            self.tilesScaled = self.resizeImages(self.tiles, tileSize)
+        if self.actors:
+            self.actorsScaled = self.resizeImages(self.tiles, self.actorSize)
+        
 
     def setViewpoint(self, pos):
         x, y = pos
