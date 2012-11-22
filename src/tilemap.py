@@ -98,16 +98,13 @@ class Map(object):
         return (mapXPos, mapYPos)
     
     def render(self, target):
-        centre = self.viewpoint
-        xCentre, yCentre = centre
         mapSize = mapWidth, mapHeight = self.getSize()
-        r = l, t, w, h = target.get_rect()
-        viewCentre = viewXCentre, viewYCentre = (w/2, h/2)
-        viewSize = viewWidth, viewHeight = (w, h)
-        xMin = max(xCentre-viewXCentre/self.scale, 0)
-        yMin = max(yCentre-viewYCentre/self.scale, 0)
-        xMax = min(xCentre+viewXCentre/self.scale, mapWidth-1)
-        yMax = min(yCentre+viewYCentre/self.scale, mapHeight-1)
+        xMin, yMin = self.transformToMapspace(target, (0, 0))
+        xMax, yMax = self.transformToMapspace(target, target.get_rect()[2:])
+        xMin = max(xMin, 0)
+        yMin = max(yMin, 0)
+        xMax = min(xMax, mapWidth-1)
+        yMax = min(yMax, mapHeight-1)
         leftBlock, topBlock = self.tileByPos((xMin, yMin))
         rightBlock, bottomBlock = self.tileByPos((xMax, yMax))
         self.setTileSize
