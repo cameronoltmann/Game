@@ -176,23 +176,18 @@ class Map(object):
         m.grid = data['grid']
         m.filename = filename
         m.loadTiles(m.tileNames)
+        m.loadActors(m.actorNames)
         return m
         
     def save(self, filename=None):
         if filename:
             self.filename = filename
-        '''
-        data = {'fill': self.fill,
-                'wall': self.wall,
-                'size': self.size,
-                'tileSize': self.tileSize,
-                'grid': self.grid,
-                'tileNames': self.tileNames,
-                }
-        '''
         data = self.__dict__
         del data['tiles']
         del data['tilesRaw']
         del data['tilesScaled']
+        del data['actors']
+        del data['actorsRaw']
+        del data['actorsScaled']
         pickle.dump(data, open(Map.resourcePath+self.filename, 'wb'))
 
