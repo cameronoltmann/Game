@@ -7,28 +7,67 @@ Created on Nov 12, 2012
 import pygame
 import tilemap
 import random
+import util
+
+SENSE_RADIUS = 100
+A_BASE = 0
+A_ZOMBIE = 1
+A_SOLDIER = 2
+A_CIVILIAN = 3
+
+
 
 class Actor(pygame.sprite.Sprite):
     '''
     classdocs
     '''
-    initVals = {'sense_radius': 100,
-                 'resourcePath': 'res/'
-
+    first = True # set this false when first instance of an object is created
+    initVals = {'sense_radius': SENSE_RADIUS,
+                 'resourcePath': 'res/',
+                 'image': A_BASE 
                  } 
 
     def __init__(self):
-        super(Actor, self).__init__()
-        self.__class__.setInit(**self.__class__.init_vals)
+        '''
+        inherit default settings from parent class - copy initVals when initializing first instance of class
+        '''
+        first = not self.__class__.hasattr('initVals')
+        super(self.__class__, self).__init__()
+        if first:
+            self.__class__.setInit(super(self.__class__))
 
     @classmethod
-    def setInit(cls, **kwargs):
-        for arg in kwargs:
-            setattr(cls, arg, kwargs[arg])
+    def setInit(cls, parent):
+        if not hasattr(parent, 'initVals'):
+            parent.setInit(super(parent, parent))
+        cls.initVals = parent.initVals.copy()
+
+    @classmethod
+    def addInit(cls, vals):
+        for k, v in vals.items():
+            cls.initVals[k] = v
+
+    def setMap(self, level):
+        self.level = level
+
+    def setLoc(self, loc):
+        if self.level.canMoveTo(self, loc):
+            self.loc = loc
+            return True
+        return False
+    
+    def move(self, step):
+        return self.setLoc()
 
 class Ball(Actor):
+    '''
+    Scrub this once the first actors are implemented
+    '''
     def __init__(self):
-        super(Ball, self).__init__()
+        first = not self.__class__.hasattr('initVals')
+        super(self.__class__, self).__init__()
+        if first:
+            self.__class__.setInit(super(self.__class__))
         self.speed = [random.randrange(4), random.randrange(4)]
         self.image = pygame.image.load(self.resourcePath+'ball.gif')
         self.rect = self.image.get_rect()
@@ -44,8 +83,11 @@ class Ball(Actor):
 
 class Zombie(Actor):
     def __init(self):
-        super(Zombie, self).__init__()
-        self.speed = (0,0)
-        self.image = pygame.image.load('ball.gif')
-        self.rect = self.image.get_rect()
+        first = not self.__class__.hasattr('initVals')
+        super(self.__class__, self).__init__()
+        if first:
+            self.__class__.setInit(super(self.__class__))
+            self.addInit({
+                          'image': A_ZOMBIE
+                          })
 

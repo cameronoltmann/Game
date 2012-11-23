@@ -5,7 +5,7 @@ Created on Nov 11, 2012
 '''
 import pygame
 import pickle
-import util
+from util import *
 
 BLOCKSIZE = 256
 ACTORSIZE = 128
@@ -31,7 +31,7 @@ class Map(object):
         self.scale = 1.0
         self.maxScale = 2.0
         self.minScale = 0.05
-        self.setViewpoint(util.scaleCoords(self.getSize(), 0.5))
+        self.setViewpoint(scaleCoords(self.getSize(), 0.5))
         self.setTileSize(BLOCKSIZE)
     
     def loadTiles(self, tileNames, tileSize=None):
@@ -48,6 +48,16 @@ class Map(object):
         self.actors = [pygame.transform.scale(actor, (ACTORSIZE, ACTORSIZE)) for actor in self.actorsRaw]
         self.actorsScaled = self.resizeImages(self.actors, self.actorSize)
         
+    def canMoveTo(self, actor, loc):
+        if isinstance(loc, Loc):
+            x, y = loc.loc
+        else:
+            x, y = loc
+        if 0<x<self.width*BLOCKSIZE\
+            and 0<y<self.height*BLOCKSIZE\
+            and actor.canTraverse((x/BLOCKSIZE,y/BLOCKSIZE)):
+                return True
+        return False
 
     def resizeImages(self, images, size):
         return [pygame.transform.scale(image, (size, size)) for image in images]
@@ -131,7 +141,7 @@ class Map(object):
     def renderTile(self, target, tile):
         centre = self.viewpoint
         x, y = tile
-        tileULC = util.scaleCoords(tile, BLOCKSIZE)
+        tileULC = scaleCoords(tile, BLOCKSIZE)
         tileScreenULC = self.transformToScreenspace(target, tileULC)
         tileRect = pygame.rect.Rect(tileScreenULC, (self.tileSize, self.tileSize))
         target.blit(self.tilesScaled[self.grid[x+y*self.width]],tileRect)
