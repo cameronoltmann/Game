@@ -1,7 +1,8 @@
 ################
 ## Temp stuff
 ################
-map.p
+#map.p - temporarily removing this to avoid problems with
+#        version incompatibility
 
 #################
 ## Eclipse
