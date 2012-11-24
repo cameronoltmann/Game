@@ -65,28 +65,6 @@ class Actor(pygame.sprite.Sprite):
     def canTraverse(self, loc):
         return True
 
-class Ball(Actor):
-    '''
-    Scrub this once the first real actors are implemented
-    '''
-    def __init__(self):
-        first = not self.__class__.hasattr('initVals')
-        super(self.__class__, self).__init__()
-        if first:
-            self.__class__.setInit(super(self.__class__))
-        self.speed = [random.randrange(4), random.randrange(4)]
-        self.image = pygame.image.load(self.resourcePath+'ball.gif')
-        self.rect = self.image.get_rect()
-
-    def update(self):
-        self.rect = self.rect.move(self.speed)
-        _, _, width, height = pygame.display.get_surface().get_rect()
-        
-        if self.rect.left < 0 or self.rect.right > width:
-            self.speed[0] = -self.speed[0]
-        if self.rect.top <0 or self.rect.bottom > height:
-            self.speed[1] = -self.speed[1]
-
 class Zombie(Actor):
     appearance = ZOMBIE
     maxSpeed = BASE_SPEED * ZOMBIE_SPEED

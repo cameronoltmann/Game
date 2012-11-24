@@ -25,6 +25,10 @@ class Map(object):
         self.tiles = []
         self.actors = []
         self.mobs = pygame.sprite.Group()
+        self.enemies = pygame.sprite.Group()
+        self.friendlies = pygame.sprite.Group()
+        self.neutrals = pygame.sprite.Group()
+        self.visible = pygame.sprite.Group()
         self.mobOffset = Loc(0, 0)
         self.mobSize = Loc(0, 0)
         self.scale = 1.0
@@ -63,18 +67,18 @@ class Map(object):
     
     def setTileSize(self, tileSize):
         self.tileSize = tileSize
-        logging.info('tileSize: %s' % tileSize)
+        logging.debug('tileSize: %s' % tileSize)
         self.setActorSize(self.tileSize*ACTORSIZE/BLOCKSIZE)
         if self.tiles:
             self.tilesScaled = self.resizeImages(self.tiles, tileSize)
         else:
-            logging.info('self.actors doesn\'t exist!')
+            logging.debug('self.actors doesn\'t exist!')
         
     def setActorSize(self, size):
         self.actorSize = size
         self.mobSize = Loc(self.actorSize, self.actorSize)
         self.mobOffset = -self.mobSize/2.0
-        logging.info('mobSize: %s' % self.mobSize)
+        logging.debug('mobSize: %s' % self.mobSize)
         if self.actors:
             self.actorsScaled = self.resizeImages(self.actors, size)
             for mob in self.mobs:
@@ -91,8 +95,17 @@ class Map(object):
 
     def getViewpoint(self):
         return self.viewpoint
-    
-            
+
+    def getVisibleMobs(self, viewers = None):
+        visible = pygame.sprite.Group()
+        if not viewers:
+            viewers = self.friendlies
+        for v in viewers:
+            for m in self.mobs:
+                if v.loc.distance(m.loc)<=v.senseRadius:
+                    visible.add(m)
+        return visible
+                    
     def setSize(self, size):
         self.size = self.width, self.height = size
         self.clearMap()
@@ -131,6 +144,15 @@ class Map(object):
         mapYPos = yCentre - ((viewYCentre-y) * BLOCKSIZE/self.tileSize)
         return (mapXPos, mapYPos)
     
+    def renderMobs(self, target, mobs=None):
+        if not mobs:
+            mobs = self.mobs
+        for mob in mobs.sprites():
+            mob.rect = pygame.Rect((self.mobOffset+self.transformToScreenspace(target, mob.loc.loc)).loc, self.mobSize.loc)
+            #logging.debug('%s = %s' % (mob.loc, mob.rect))
+        #mobs.draw(target)
+        self.visible.draw(target)
+        
     def render(self, target):
         mapSize = mapWidth, mapHeight = self.getSize()
         xMin, yMin = self.transformToMapspace(target, (0, 0))
@@ -185,25 +207,20 @@ class Map(object):
     def get_tile(self, (x, y)):
         return self.grid[y*self.width+x]
     
-    def renderMobs(self, target, mobs=None):
-        if not mobs:
-            mobs = self.mobs
-        for mob in mobs.sprites():
-            mob.rect = pygame.Rect((self.mobOffset+self.transformToScreenspace(target, mob.loc.loc)).loc, self.mobSize.loc)
-            #logging.info('%s = %s' % (mob.loc, mob.rect))
-        mobs.draw(target)
-        
     @classmethod
     def load(cls, filename):
-        data = pickle.load(open(Map.resourcePath+filename, 'rb'))
-        m = Map()
-        for name, value in data.iteritems():
-            setattr(m, name, value)
+        m = pickle.load(open(Map.resourcePath+filename, 'rb'))
+        #m = Map()
+        #for name, value in data.iteritems():
+        #    setattr(m, name, value)
         m.setSize(m.size)
-        m.grid = data['grid']
+        #m.grid = data['grid']
         m.filename = filename
         m.loadTiles(m.tileNames)
         m.loadActors(m.actorNames)
+        logging.debug('Level: %s' % m)
+        for mob in m.mobs:
+            logging.debug('Mob.level: %s' % mob.level)
         return m
         
     def save(self, filename=None):

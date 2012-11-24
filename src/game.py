@@ -128,12 +128,15 @@ class Game(object):
                 self.level.render(self.mapPort)
             if not self.editMode:
                 self.level.mobs.update()
+                self.level.visible = self.level.getVisibleMobs(self.level.friendlies)
+            else:
+                self.level.visible = self.level.mobs
             self.render()
             self.framecount += 1
             curTime = time.time()
             elapsed = curTime-self.startTime
             if elapsed>=1:
-                logging.info("FPS: %f" % (self.framecount/elapsed))
+                logging.debug("FPS: %f" % (self.framecount/elapsed))
                 self.startTime=curTime
                 self.framecount=0
         # Exit game
@@ -144,28 +147,32 @@ class Game(object):
         self.background = pygame.Surface(self.screen.get_size())
         self.background = self.background.convert()
         self.background.fill(BLACK)
-        logging.info('Resource path: %s' % self.resourcePath)
+        logging.debug('Resource path: %s' % self.resourcePath)
         Map.resourcePath = self.resourcePath
         try:
             self.level = Map.load('map.p')
-            logging.info(self.level)
+            logging.debug(self.level)
         except:
-            logging.info('Generating map')
+            logging.debug('Generating map')
             self.level = Map((20, 20), TILE_WALL)
             self.level.filename = 'map.p'
             self.level.loadTiles(['tile0.jpg', 'tile1.jpg'])
             self.level.loadActors(['blip.png', 'zombie.png', 'soldier.png', 'civilian.png'])
-            logging.info('generating mobs')
+            logging.debug('generating mobs')
             self.level.mobs = pygame.sprite.Group([Civilian(self.level, Loc(i*BLOCKSIZE+ACTORSIZE, i*BLOCKSIZE+ACTORSIZE)) for i in range(5)])
             self.level.mobs.add([Soldier(self.level, Loc(i*BLOCKSIZE+ACTORSIZE, i*BLOCKSIZE+ACTORSIZE)) for i in range(5, 10)])
             self.level.mobs.add([Zombie(self.level, Loc(i*BLOCKSIZE+ACTORSIZE, i*BLOCKSIZE+ACTORSIZE)) for i in range(10, 20)])
+            self.level.enemies = pygame.sprite.Group([mob for mob in self.level.mobs if isinstance(mob, Zombie)])
+            self.level.friendlies = pygame.sprite.Group([mob for mob in self.level.mobs if isinstance(mob, Soldier)])
+            self.level.neutrals = pygame.sprite.Group([mob for mob in self.level.mobs if isinstance(mob, Civilian)])
+            logging.debug('%s %s %s %s' % (len(self.level.mobs), len(self.level.enemies), len(self.level.friendlies), len(self.level.neutrals)))
         self.mapPortRect = self.level.fitTo(self.width, self.height)
         mapSize = mapWidth, mapHeight = self.level.getSize()
         self.mapViewScale = (1.0*self.mapPortRect[2]/mapWidth)
-        logging.info('Setting map scale')
+        logging.debug('Setting map scale')
         self.level.setScale(self.mapViewScale)
         self.mapViewpoint = self.level.getViewpoint()
-        logging.info("Scale: %s" % self.mapViewScale)
+        logging.debug("Scale: %s" % self.mapViewScale)
         self.mapPort = self.background.subsurface(self.mapPortRect)
         self.mapPortOverlay = self.screen.subsurface(self.mapPortRect)
         self.level.render(self.mapPort)
