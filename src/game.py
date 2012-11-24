@@ -155,6 +155,9 @@ class Game():
             self.level.filename = 'map.p'
             self.level.loadTiles(['tile0.jpg', 'tile1.jpg'])
             self.level.loadActors(['blip', 'zombie.png', 'soldier.png', 'civilian.png'])
+            self.level.mobs = [Actor() for i in range(10)]
+            for i, mob in enumerate(self.level.mobs):
+                mob.moveTo(Loc(i*tilemap.BLOCKSIZE+tilemap.ACTORSIZE, i*tilemap.BLOCKSIZE+tilemap.ACTORSIZE))
         self.mapPortRect = self.level.fitTo(self.width, self.height)
         mapSize = mapWidth, mapHeight = self.level.getSize()
         self.mapViewScale = (1.0*self.mapPortRect[2]/mapWidth)

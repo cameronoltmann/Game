@@ -28,6 +28,7 @@ class Map(object):
         self.clearMap()
         self.tiles = None
         self.actors = None
+        self.mobs = []
         self.scale = 1.0
         self.maxScale = 2.0
         self.minScale = 0.05

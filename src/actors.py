@@ -31,16 +31,20 @@ class Actor(pygame.sprite.Sprite):
         '''
         inherit default settings from parent class - copy initVals when initializing first instance of class
         '''
-        first = not self.__class__.hasattr('initVals')
+        first = not self.__class__.hasattr(self.__class__.__name__)
         super(self.__class__, self).__init__()
         if first:
-            self.__class__.setInit(super(self.__class__))
+            self.__class__.setInit()
 
     @classmethod
-    def setInit(cls, parent):
-        if not hasattr(parent, 'initVals'):
+    def setInit(cls, **kwargs):
+        if not hasattr(super(cls), super):
             parent.setInit(super(parent, parent))
         cls.initVals = parent.initVals.copy()
+        for key, arg in cls.initVals:
+            setattr(cls, key, arg)
+        for key, arg in kwargs:
+            setattr(cls, key, arg)
 
     @classmethod
     def addInit(cls, vals):
@@ -58,6 +62,9 @@ class Actor(pygame.sprite.Sprite):
     
     def move(self, step):
         return self.setLoc()
+    
+    def canTraverse(self, loc):
+        return True
 
 class Ball(Actor):
     '''
