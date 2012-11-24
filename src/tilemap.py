@@ -52,8 +52,8 @@ class Map(object):
             x, y = loc.loc
         else:
             x, y = loc
-        if 0<x<self.width*BLOCKSIZE\
-            and 0<y<self.height*BLOCKSIZE\
+        if ACTORSIZE<x<self.width*BLOCKSIZE-ACTORSIZE\
+            and ACTORSIZE<y<self.height*BLOCKSIZE-ACTORSIZE\
             and actor.canTraverse((x/BLOCKSIZE,y/BLOCKSIZE)):
                 return True
         return False
