@@ -5,6 +5,7 @@ Created on Nov 11, 2012
 '''
 
 import math
+import logging
 
 def addCoords(a, b):
     return (a[0]+b[0], a[1]+b[1])
@@ -24,10 +25,15 @@ class Loc():
         return '(%s, %s)' % (self.x, self.y)
     
     def __add__(self, other):
-        return Loc(self.x+other.x, self.y+other.y)
+        if isinstance(other, Loc):
+            return Loc(self.x+other.x, self.y+other.y)
+        return Loc(self.x+other[0], self.y+other[1])
     
     def __sub__(self, other):
         return Loc(self.x-other.x, self.y-other.y)
+    
+    def __neg__(self):
+        return Loc(-self.x, -self.y)
     
     def __mul__(self, factor):
         return Loc(self.x*factor, self.y*factor)
@@ -40,6 +46,12 @@ class Loc():
             return self.loc==other.loc
         return self.loc == other 
 
+    def addVector(self, direction, magnitude):
+        x = math.cos(direction)*magnitude
+        y = math.sin(direction)*magnitude
+        return self+(x, y)
+        
     def distance(self, other):
-        return math.sqrt((self.x-other.x)**2 + (self.y-other.y)**2)
+        #return math.sqrt((self.x-other.x)**2 + (self.y-other.y)**2)
+        return math.hypot(self.x-other.x, self.y-other.y)
  

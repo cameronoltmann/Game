@@ -6,11 +6,7 @@ Created on Nov 11, 2012
 import pygame
 import pickle
 from util import *
-
-BLOCKSIZE = 256
-ACTORSIZE = 128
-TILE_OPEN = 0
-TILE_WALL = 1
+from constants import *
 
 class MapTile(object):
     def __init__(self):
@@ -26,9 +22,11 @@ class Map(object):
         self.wall = border
         self.setSize(size)
         self.clearMap()
-        self.tiles = None
-        self.actors = None
-        self.mobs = []
+        self.tiles = []
+        self.actors = []
+        self.mobs = pygame.sprite.Group()
+        self.mobOffset = Loc(0, 0)
+        self.mobSize = Loc(0, 0)
         self.scale = 1.0
         self.maxScale = 2.0
         self.minScale = 0.05
@@ -47,7 +45,7 @@ class Map(object):
         self.actorNames = list(actorNames)
         self.actorsRaw = [pygame.image.load(Map.resourcePath+actor) for actor in self.actorNames]
         self.actors = [pygame.transform.scale(actor, (ACTORSIZE, ACTORSIZE)) for actor in self.actorsRaw]
-        self.actorsScaled = self.resizeImages(self.actors, self.actorSize)
+        self.setActorSize(self.actorSize)
         
     def canMoveTo(self, actor, loc):
         if isinstance(loc, Loc):
@@ -65,12 +63,22 @@ class Map(object):
     
     def setTileSize(self, tileSize):
         self.tileSize = tileSize
-        self.actorSize = self.tileSize*(ACTORSIZE/BLOCKSIZE)
+        logging.info('tileSize: %s' % tileSize)
+        self.setActorSize(self.tileSize*ACTORSIZE/BLOCKSIZE)
         if self.tiles:
             self.tilesScaled = self.resizeImages(self.tiles, tileSize)
-        if self.actors:
-            self.actorsScaled = self.resizeImages(self.tiles, self.actorSize)
+        else:
+            logging.info('self.actors doesn\'t exist!')
         
+    def setActorSize(self, size):
+        self.actorSize = size
+        self.mobSize = Loc(self.actorSize, self.actorSize)
+        self.mobOffset = -self.mobSize/2.0
+        logging.info('mobSize: %s' % self.mobSize)
+        if self.actors:
+            self.actorsScaled = self.resizeImages(self.actors, size)
+            for mob in self.mobs:
+                mob.image = self.actorsScaled[mob.appearance]
 
     def setViewpoint(self, pos):
         x, y = pos
@@ -151,7 +159,7 @@ class Map(object):
     def setScale(self, scale):
         if self.minScale <= scale <= self.maxScale and scale != self.scale:
             self.scale = scale
-            self.setTileSize(int(BLOCKSIZE*scale))
+        self.setTileSize(int(BLOCKSIZE*self.scale))
         return self.scale
         
 
@@ -176,6 +184,14 @@ class Map(object):
         
     def get_tile(self, (x, y)):
         return self.grid[y*self.width+x]
+    
+    def renderMobs(self, target, mobs=None):
+        if not mobs:
+            mobs = self.mobs
+        for mob in mobs.sprites():
+            mob.rect = pygame.Rect((self.mobOffset+self.transformToScreenspace(target, mob.loc.loc)).loc, self.mobSize.loc)
+            #logging.info('%s = %s' % (mob.loc, mob.rect))
+        mobs.draw(target)
         
     @classmethod
     def load(cls, filename):
@@ -200,5 +216,7 @@ class Map(object):
         del data['actors']
         del data['actorsRaw']
         del data['actorsScaled']
+        for mob in self.mobs:
+            mob.image = None
         pickle.dump(data, open(Map.resourcePath+self.filename, 'wb'))
 

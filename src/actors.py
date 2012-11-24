@@ -4,46 +4,38 @@ Created on Nov 12, 2012
 @author: Grud
 '''
 
-import pygame
-import tilemap
 import random
-import util
+import math
+import pygame
+from pygame.locals import *
 
-SENSE_RADIUS = 100
-A_BASE = 0
-A_ZOMBIE = 1
-A_SOLDIER = 2
-A_CIVILIAN = 3
-
-
+from tilemap import *
+from util import *
+from constants import *
 
 class Actor(pygame.sprite.Sprite):
     '''
     classdocs
     '''
-    first = True # set this false when first instance of an object is created
-    initVals = {'sense_radius': SENSE_RADIUS,
-                 'resourcePath': 'res/',
-                 'image': A_BASE 
-                 } 
+    # class defaults
+    senseRadius = SENSE_RADIUS
+    resourcePath = 'res/'
+    appearance = ACTOR
+    maxSpeed = BASE_SPEED
+    # behaviour
+    consistency = 0.99
+    strategy = STRATEGY_RANDOM
 
-    def __init__(self):
-        '''
-        inherit default settings from parent class - copy initVals when initializing first instance of class
-        '''
-        first = not self.__class__.hasattr(self.__class__.__name__)
-        super(self.__class__, self).__init__()
-        if first:
-            self.__class__.setInit()
+    def __init__(self, level = None, loc = None):
+        super(Actor, self).__init__()
+        self.level = level
+        self.loc = loc
+        self.speed = 0.0
+        self.direction = 0.0
 
     @classmethod
     def setInit(cls, **kwargs):
-        if not hasattr(super(cls), super):
-            parent.setInit(super(parent, parent))
-        cls.initVals = parent.initVals.copy()
-        for key, arg in cls.initVals:
-            setattr(cls, key, arg)
-        for key, arg in kwargs:
+        for key, arg in kwargs.items():
             setattr(cls, key, arg)
 
     @classmethod
@@ -54,21 +46,28 @@ class Actor(pygame.sprite.Sprite):
     def setMap(self, level):
         self.level = level
 
-    def setLoc(self, loc):
+    def moveTo(self, loc):
         if self.level.canMoveTo(self, loc):
             self.loc = loc
             return True
         return False
     
-    def move(self, step):
-        return self.setLoc()
+    def move(self, direction, speed):
+        return self.moveTo(self.loc.addVector(direction, speed))
     
+    def update(self):
+        if self.strategy == STRATEGY_RANDOM:
+            if random.random()>self.consistency:
+                self.speed = random.random()*self.maxSpeed
+                self.direction = random.random()*2*math.pi
+        self.move(self.direction, self.speed)
+        
     def canTraverse(self, loc):
         return True
 
 class Ball(Actor):
     '''
-    Scrub this once the first actors are implemented
+    Scrub this once the first real actors are implemented
     '''
     def __init__(self):
         first = not self.__class__.hasattr('initVals')
@@ -89,12 +88,14 @@ class Ball(Actor):
             self.speed[1] = -self.speed[1]
 
 class Zombie(Actor):
-    def __init(self):
-        first = not self.__class__.hasattr('initVals')
-        super(self.__class__, self).__init__()
-        if first:
-            self.__class__.setInit(super(self.__class__))
-            self.addInit({
-                          'image': A_ZOMBIE
-                          })
-
+    appearance = ZOMBIE
+    maxSpeed = BASE_SPEED * ZOMBIE_SPEED
+    
+class Soldier(Actor):
+    appearance = SOLDIER
+    maxSpeed = BASE_SPEED * SOLDIER_SPEED
+    
+class Civilian(Actor):
+    appearance = CIVILIAN
+    maxSpeed = BASE_SPEED * CIVILIAN_SPEED
+    

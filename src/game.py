@@ -5,22 +5,19 @@ Created on Nov 11, 2012
 '''
 
 import sys
-import pygame
 import random
 import logging
 import time
-import tilemap
-import util
+import pygame
+from pygame.locals import *
+
+from util import *
 from actors import *
+from constants import *
+from tilemap import *
 
 
-BLACK = (0, 0, 0)
-RED = (255, 0, 0)
-GREEN = (0, 255, 0)
-ZOOMFACTOR = 1.2
-SCROLLSPEED = 1.5
-
-class Game():
+class Game(object):
     resourcePath = 'res/'
     
     def __init__(self, **kwargs):
@@ -47,13 +44,14 @@ class Game():
     def render(self):
         mapTile = self.mapTileByPos(pygame.mouse.get_pos())
         self.screen.blit(self.background, (0, 0))
+        self.level.renderMobs(self.mapPortOverlay)
         if self.editMode:
             self.screen.blit(self.systemFont.render("Edit", 0, (255,0,0)), (0,0))
             cursor_color=RED
         else:
             cursor_color=GREEN
         if mapTile:
-            tileULC = util.scaleCoords(mapTile, tilemap.BLOCKSIZE)
+            tileULC = scaleCoords(mapTile, BLOCKSIZE)
             screenULC = self.level.transformToScreenspace(self.mapPort, tileULC)
             tile_rect = pygame.rect.Rect(screenULC[0],
                          screenULC[1],
@@ -102,10 +100,10 @@ class Game():
                             self.level.render(self.mapPort)
                     if mapTile:
                         if self.editMode and event.button==1:
-                            if self.level.get_tile(mapTile) == tilemap.TILE_OPEN:
-                                self.drawing = tilemap.TILE_WALL+100
+                            if self.level.get_tile(mapTile) == TILE_OPEN:
+                                self.drawing = TILE_WALL+100
                             else:
-                                self.drawing = tilemap.TILE_OPEN+100
+                                self.drawing = TILE_OPEN+100
                             self.level.setTile(mapTile, self.drawing-100)
                             self.level.renderTile(self.mapPort, mapTile)
                 elif event.type == pygame.MOUSEBUTTONUP:
@@ -126,9 +124,10 @@ class Game():
             if self.keyState.get(pygame.K_DOWN):
                 yMove += SCROLLSPEED/self.mapViewScale
             if xMove or yMove:
-                self.mapViewpoint = self.level.setViewpoint(util.addCoords(self.mapViewpoint, (xMove, yMove)))
+                self.mapViewpoint = self.level.setViewpoint(addCoords(self.mapViewpoint, (xMove, yMove)))
                 self.level.render(self.mapPort)
-            
+            if not self.editMode:
+                self.level.mobs.update()
             self.render()
             self.framecount += 1
             curTime = time.time()
@@ -146,21 +145,24 @@ class Game():
         self.background = self.background.convert()
         self.background.fill(BLACK)
         logging.info('Resource path: %s' % self.resourcePath)
-        tilemap.Map.resourcePath = self.resourcePath
+        Map.resourcePath = self.resourcePath
         try:
-            self.level = tilemap.Map.load('map.p')
+            self.level = Map.load('map.p')
             logging.info(self.level)
         except:
-            self.level = tilemap.Map((50, 50), tilemap.TILE_WALL)
+            logging.info('Generating map')
+            self.level = Map((20, 20), TILE_WALL)
             self.level.filename = 'map.p'
             self.level.loadTiles(['tile0.jpg', 'tile1.jpg'])
-            self.level.loadActors(['blip', 'zombie.png', 'soldier.png', 'civilian.png'])
-            self.level.mobs = [Actor() for i in range(10)]
-            for i, mob in enumerate(self.level.mobs):
-                mob.moveTo(Loc(i*tilemap.BLOCKSIZE+tilemap.ACTORSIZE, i*tilemap.BLOCKSIZE+tilemap.ACTORSIZE))
+            self.level.loadActors(['blip.png', 'zombie.png', 'soldier.png', 'civilian.png'])
+            logging.info('generating mobs')
+            self.level.mobs = pygame.sprite.Group([Civilian(self.level, Loc(i*BLOCKSIZE+ACTORSIZE, i*BLOCKSIZE+ACTORSIZE)) for i in range(5)])
+            self.level.mobs.add([Soldier(self.level, Loc(i*BLOCKSIZE+ACTORSIZE, i*BLOCKSIZE+ACTORSIZE)) for i in range(5, 10)])
+            self.level.mobs.add([Zombie(self.level, Loc(i*BLOCKSIZE+ACTORSIZE, i*BLOCKSIZE+ACTORSIZE)) for i in range(10, 20)])
         self.mapPortRect = self.level.fitTo(self.width, self.height)
         mapSize = mapWidth, mapHeight = self.level.getSize()
         self.mapViewScale = (1.0*self.mapPortRect[2]/mapWidth)
+        logging.info('Setting map scale')
         self.level.setScale(self.mapViewScale)
         self.mapViewpoint = self.level.getViewpoint()
         logging.info("Scale: %s" % self.mapViewScale)
