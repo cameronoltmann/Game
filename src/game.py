@@ -100,7 +100,7 @@ class Game(object):
                             self.level.render(self.mapPort)
                     if mapTile:
                         if self.editMode and event.button==1:
-                            if self.level.get_tile(mapTile) == TILE_OPEN:
+                            if self.level.getTile(mapTile) == TILE_OPEN:
                                 self.drawing = TILE_WALL+100
                             else:
                                 self.drawing = TILE_OPEN+100
@@ -128,9 +128,9 @@ class Game(object):
                 self.level.render(self.mapPort)
             if not self.editMode:
                 self.level.mobs.update()
-                self.level.visible = self.level.getVisibleMobs(self.level.friendlies)
+                self.level.setVisible(self.level.getVisibleMobs(self.level.friendlies))
             else:
-                self.level.visible = self.level.mobs
+                self.level.setVisible(self.level.mobs)
             self.render()
             self.framecount += 1
             curTime = time.time()
@@ -152,16 +152,18 @@ class Game(object):
         try:
             self.level = Map.load('map.p')
             logging.debug(self.level)
-        except:
+        except IOError:
             logging.debug('Generating map')
-            self.level = Map((20, 20), TILE_WALL)
+            self.level = Map((20, 20))
             self.level.filename = 'map.p'
-            self.level.loadTiles(['tile0.jpg', 'tile1.jpg'])
+            self.level.loadTiles(['tile0.png', 'tile1.png'])
             self.level.loadActors(['blip.png', 'zombie.png', 'soldier.png', 'civilian.png'])
             logging.debug('generating mobs')
-            self.level.mobs = pygame.sprite.Group([Civilian(self.level, Loc(i*BLOCKSIZE+ACTORSIZE, i*BLOCKSIZE+ACTORSIZE)) for i in range(5)])
-            self.level.mobs.add([Soldier(self.level, Loc(i*BLOCKSIZE+ACTORSIZE, i*BLOCKSIZE+ACTORSIZE)) for i in range(5, 10)])
-            self.level.mobs.add([Zombie(self.level, Loc(i*BLOCKSIZE+ACTORSIZE, i*BLOCKSIZE+ACTORSIZE)) for i in range(10, 20)])
+            validMin, validMax = (BLOCKSIZE+ACTORSIZE, self.level.width*BLOCKSIZE-(BLOCKSIZE+ACTORSIZE))
+            validRange = validMax - validMin  
+            self.level.mobs = pygame.sprite.Group([Civilian(self.level, Loc(random.random()*validRange + validMin, random.random()*validRange + validMin)) for i in range(5)])
+            self.level.mobs.add([Soldier(self.level, Loc(random.random()*validRange + validMin, random.random()*validRange + validMin)) for i in range(5, 10)])
+            self.level.mobs.add([Zombie(self.level, Loc(random.random()*validRange + validMin, random.random()*validRange + validMin)) for i in range(10, 20)])
             self.level.enemies = pygame.sprite.Group([mob for mob in self.level.mobs if isinstance(mob, Zombie)])
             self.level.friendlies = pygame.sprite.Group([mob for mob in self.level.mobs if isinstance(mob, Soldier)])
             self.level.neutrals = pygame.sprite.Group([mob for mob in self.level.mobs if isinstance(mob, Civilian)])

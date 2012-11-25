@@ -4,7 +4,8 @@ Created on Nov 11, 2012
 @author: Grud
 '''
 import pygame
-import pickle
+import cPickle
+import time
 from util import *
 from constants import *
 
@@ -58,7 +59,7 @@ class Map(object):
             x, y = loc
         if ACTORSIZE<x<self.width*BLOCKSIZE-ACTORSIZE\
             and ACTORSIZE<y<self.height*BLOCKSIZE-ACTORSIZE\
-            and actor.canTraverse((x/BLOCKSIZE,y/BLOCKSIZE)):
+            and actor.canTraverse((x,y)):
                 return True
         return False
 
@@ -96,15 +97,22 @@ class Map(object):
     def getViewpoint(self):
         return self.viewpoint
 
+    def isVisible(self, viewer, target):
+        return viewer.loc.distanceTo(target.loc)<=viewer.senseRadius
+
     def getVisibleMobs(self, viewers = None):
-        visible = pygame.sprite.Group()
+        visible = []
         if not viewers:
             viewers = self.friendlies
         for v in viewers:
             for m in self.mobs:
-                if v.loc.distance(m.loc)<=v.senseRadius:
-                    visible.add(m)
+                if self.isVisible(v, m):
+                    visible.append(m)
         return visible
+
+    def setVisible(self, visible):
+        self.visible.empty()
+        self.visible.add(visible)
                     
     def setSize(self, size):
         self.size = self.width, self.height = size
@@ -152,6 +160,7 @@ class Map(object):
             #logging.debug('%s = %s' % (mob.loc, mob.rect))
         #mobs.draw(target)
         self.visible.draw(target)
+        #self.friendlies.draw(target)
         
     def render(self, target):
         mapSize = mapWidth, mapHeight = self.getSize()
@@ -204,26 +213,26 @@ class Map(object):
     def setTile(self, (x, y), fill):
         self.grid[y*self.width+x] = fill
         
-    def get_tile(self, (x, y)):
+    def getTile(self, (x, y)):
         return self.grid[y*self.width+x]
     
     @classmethod
     def load(cls, filename):
-        m = pickle.load(open(Map.resourcePath+filename, 'rb'))
-        #m = Map()
-        #for name, value in data.iteritems():
-        #    setattr(m, name, value)
+        data = cPickle.load(open(Map.resourcePath+filename, 'rb'))
+        m = Map()
+        for name, value in data.iteritems():
+            setattr(m, name, value)
         m.setSize(m.size)
-        #m.grid = data['grid']
+        m.grid = data['grid']
         m.filename = filename
         m.loadTiles(m.tileNames)
         m.loadActors(m.actorNames)
-        logging.debug('Level: %s' % m)
         for mob in m.mobs:
-            logging.debug('Mob.level: %s' % mob.level)
+            mob.level = m
         return m
         
     def save(self, filename=None):
+        t0 = time.time()
         if filename:
             self.filename = filename
         data = self.__dict__
@@ -235,5 +244,7 @@ class Map(object):
         del data['actorsScaled']
         for mob in self.mobs:
             mob.image = None
-        pickle.dump(data, open(Map.resourcePath+self.filename, 'wb'))
+        cPickle.dump(data, open(Map.resourcePath+self.filename, 'wb'))
+        t1 = time.time()
+        logging.debug('Level saved in %f seconds' % (t1-t0))
 
