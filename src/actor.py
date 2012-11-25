@@ -13,6 +13,24 @@ from tilemap import *
 from util import *
 from constants import *
 
+class Strategy(object):
+    def think(self, actor):
+        pass
+
+class StrategyRandom(Strategy):
+    @classmethod
+    def think(cls, actor):
+        if random.random()>actor.consistency:
+            actor.speed = random.random()*actor.maxSpeed
+            actor.direction = random.random()*2*math.pi
+    
+
+
+class StrategyZombie(Strategy):
+    @classmethod
+    def think(cls, actor):
+        StrategyRandom.think(actor)
+
 class Actor(pygame.sprite.Sprite):
     '''
     classdocs
@@ -24,7 +42,8 @@ class Actor(pygame.sprite.Sprite):
     maxSpeed = BASE_SPEED
     # behaviour
     consistency = 0.99
-    strategy = STRATEGY_RANDOM
+    strategy = StrategyRandom
+    target = None
 
     def __init__(self, level = None, loc = None):
         super(Actor, self).__init__()
@@ -56,14 +75,16 @@ class Actor(pygame.sprite.Sprite):
         return self.moveTo(self.loc.addVector(direction, speed))
     
     def update(self):
-        if self.strategy == STRATEGY_RANDOM:
-            if random.random()>self.consistency:
-                self.speed = random.random()*self.maxSpeed
-                self.direction = random.random()*2*math.pi
+        self.strategy.think(self)
         self.move(self.direction, self.speed)
         
     def canTraverse(self, loc):
         return True
+
+    def strategyRandom(self):
+        if random.random()>self.consistency:
+            self.speed = random.random()*self.maxSpeed
+            self.direction = random.random()*2*math.pi
 
 class Zombie(Actor):
     appearance = ZOMBIE

@@ -22,10 +22,6 @@ BASE_SPEED = 16.0
 ZOMBIE_SPEED = 0.7
 SOLDIER_SPEED = 1.0
 CIVILIAN_SPEED = 0.9
-# Strategies
-STRATEGY_RANDOM = 1
- 
-
 
 ## Game constants
 BLACK = (0, 0, 0)

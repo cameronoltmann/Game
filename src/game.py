@@ -12,7 +12,7 @@ import pygame
 from pygame.locals import *
 
 from util import *
-from actors import *
+from actor import *
 from constants import *
 from tilemap import *
 
