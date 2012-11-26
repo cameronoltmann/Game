@@ -4,7 +4,7 @@ Created on Nov 11, 2012
 @author: Grud
 '''
 import pygame
-import cPickle
+import pickle
 import time
 from util import *
 from constants import *
@@ -218,7 +218,7 @@ class Map(object):
     
     @classmethod
     def load(cls, filename):
-        data = cPickle.load(open(Map.resourcePath+filename, 'rb'))
+        data = pickle.load(open(Map.resourcePath+filename, 'rb'))
         m = Map()
         for name, value in data.iteritems():
             setattr(m, name, value)
@@ -244,7 +244,7 @@ class Map(object):
         del data['actorsScaled']
         for mob in self.mobs:
             mob.image = None
-        cPickle.dump(data, open(Map.resourcePath+self.filename, 'wb'))
+        pickle.dump(data, open(Map.resourcePath+self.filename, 'wb'))
         t1 = time.time()
         logging.debug('Level saved in %f seconds' % (t1-t0))
 
