@@ -97,8 +97,8 @@ class Map(object):
     def getViewpoint(self):
         return self.viewpoint
 
-    def isVisible(self, viewer, target):
-        return viewer.loc.distanceTo(target.loc)<=viewer.senseRadius
+    def isInRange(self, viewer, target, range):
+        return viewer.loc.distanceTo(target.loc)<=range
 
     def getVisibleMobs(self, viewers = None):
         visible = []
@@ -106,7 +106,7 @@ class Map(object):
             viewers = self.friendlies
         for v in viewers:
             for m in self.mobs:
-                if self.isVisible(v, m):
+                if self.isInRange(v, m, v.senseRadius):
                     visible.append(m)
         return visible
 

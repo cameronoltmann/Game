@@ -128,7 +128,8 @@ class Game(object):
                 self.level.render(self.mapPort)
             if not self.editMode:
                 self.level.mobs.update()
-                self.level.setVisible(self.level.getVisibleMobs(self.level.friendlies))
+                #self.level.setVisible(self.level.getVisibleMobs(self.level.friendlies))
+                self.level.setVisible(self.level.mobs)
             else:
                 self.level.setVisible(self.level.mobs)
             self.render()
@@ -150,7 +151,8 @@ class Game(object):
         logging.debug('Resource path: %s' % self.resourcePath)
         Map.resourcePath = self.resourcePath
         try:
-            self.level = Map.load('map.p')
+            self.level = Map.load('nomap.p')
+            #self.level = Map.load('map.p')
             logging.debug(self.level)
         except IOError:
             logging.debug('Generating map')
@@ -161,9 +163,9 @@ class Game(object):
             logging.debug('generating mobs')
             validMin, validMax = (BLOCKSIZE+ACTORSIZE, self.level.width*BLOCKSIZE-(BLOCKSIZE+ACTORSIZE))
             validRange = validMax - validMin  
-            self.level.mobs = pygame.sprite.Group([Civilian(self.level, Loc(random.random()*validRange + validMin, random.random()*validRange + validMin)) for i in range(5)])
-            self.level.mobs.add([Soldier(self.level, Loc(random.random()*validRange + validMin, random.random()*validRange + validMin)) for i in range(5, 10)])
-            self.level.mobs.add([Zombie(self.level, Loc(random.random()*validRange + validMin, random.random()*validRange + validMin)) for i in range(10, 20)])
+            self.level.mobs = pygame.sprite.Group([Civilian(self.level, Loc(random.random()*validRange + validMin, random.random()*validRange + validMin)) for i in range(25)])
+            self.level.mobs.add([Soldier(self.level, Loc(random.random()*validRange + validMin, random.random()*validRange + validMin)) for i in range(8)])
+            self.level.mobs.add([Zombie(self.level, Loc(random.random()*validRange + validMin, random.random()*validRange + validMin)) for i in range(40)])
             self.level.enemies = pygame.sprite.Group([mob for mob in self.level.mobs if isinstance(mob, Zombie)])
             self.level.friendlies = pygame.sprite.Group([mob for mob in self.level.mobs if isinstance(mob, Soldier)])
             self.level.neutrals = pygame.sprite.Group([mob for mob in self.level.mobs if isinstance(mob, Civilian)])

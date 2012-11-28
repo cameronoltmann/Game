@@ -48,18 +48,25 @@ class Loc():
 
     def addVector(self, direction, magnitude):
         x = math.cos(direction)*magnitude
-        y = math.sin(direction)*magnitude
+        y = -math.sin(direction)*magnitude
         return self+(x, y)
         
+    def getVector(self, other):
+        return [self.directionTo(other), self.distanceTo(other)] 
+         
     def distanceTo(self, other):
         #return math.sqrt((self.x-other.x)**2 + (self.y-other.y)**2)
         return math.hypot(self.x-other.x, self.y-other.y)
  
     def directionTo(self, other):
         x, y = other.x-self.x, other.y-self.y
+        y = -y
         if x==0:
             x = 1e-15
         angle = math.atan(y/x)
         if x<0:
-            angle += math.pi
+            if y<0:
+                angle -= math.pi
+            else:
+                angle += math.pi
         return angle 
