@@ -58,8 +58,6 @@ class Game(object):
                          self.level.tileSize,
                          self.level.tileSize)
             pygame.draw.rect(self.mapPortOverlay, cursor_color, tile_rect, max((self.level.tileSize/8,2)))
-        #self.balls.update()
-        #self.balls.draw(self.screen)
         pygame.display.flip()
 
     def mapTileByPos(self, pos):
@@ -159,13 +157,13 @@ class Game(object):
             self.level = Map((20, 20))
             self.level.filename = 'map.p'
             self.level.loadTiles(['tile0.png', 'tile1.png'])
-            self.level.loadActors(['blip.png', 'zombie.png', 'soldier.png', 'civilian.png'])
+            self.level.loadActors(['blip.png', 'zombie.png', 'soldier.png', 'civilian.png', 'corpse.png'])
             logging.debug('generating mobs')
             validMin, validMax = (BLOCKSIZE+ACTORSIZE, self.level.width*BLOCKSIZE-(BLOCKSIZE+ACTORSIZE))
             validRange = validMax - validMin  
             self.level.mobs = pygame.sprite.Group([Civilian(self.level, Loc(random.random()*validRange + validMin, random.random()*validRange + validMin)) for i in range(25)])
             self.level.mobs.add([Soldier(self.level, Loc(random.random()*validRange + validMin, random.random()*validRange + validMin)) for i in range(5)])
-            self.level.mobs.add([Zombie(self.level, Loc(random.random()*validRange + validMin, random.random()*validRange + validMin)) for i in range(15)])
+            self.level.mobs.add([Zombie(self.level, Loc(random.random()*validRange + validMin, random.random()*validRange + validMin)) for i in range(5)])
             self.level.enemies = pygame.sprite.Group([mob for mob in self.level.mobs if isinstance(mob, Zombie)])
             self.level.friendlies = pygame.sprite.Group([mob for mob in self.level.mobs if isinstance(mob, Soldier)])
             self.level.neutrals = pygame.sprite.Group([mob for mob in self.level.mobs if isinstance(mob, Civilian)])

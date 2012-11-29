@@ -16,7 +16,7 @@ from constants import *
 class Attack(object):
     range = ACTORSIZE
     damage = 1.0
-    delay = 60
+    delay = 120
     countdown = 0
     special = None
     condition = None
@@ -57,12 +57,12 @@ class Attack(object):
 class Rifle(Attack):
     range = BLOCKSIZE * 3
     damage = 3.0
-    delay = 45
+    delay = 90
 
 class Incubate(Attack):
     range = 0
     damage = 0
-    delay = 120
+    delay = 300
     countdown = delay
 
     def attack(self, target):
@@ -73,7 +73,7 @@ class Incubate(Attack):
 class Infection(Attack):
     range = 0
     damage = 0.1
-    delay = 10
+    delay = 40
     special = Incubate
     condition = ON_DEATH
     
@@ -85,7 +85,7 @@ class Infection(Attack):
 class Bite(Attack):
     range = ACTORSIZE
     damage = 1.5
-    delay = 60
+    delay = 120
     special = Infection
     condition = ON_HIT
     
@@ -171,7 +171,6 @@ class StrategyZombie(Strategy):
         visibleMobs = actor.level.getVisibleMobs([actor])
         visibleTargets = 0
         for mob in visibleMobs:
-            #logging.debug('%s sees %s!' % (actor, mob))
             if mob.__class__ not in (Zombie, Corpse):
                 if not actor.target:
                     actor.target = mob
@@ -253,7 +252,6 @@ class Actor(pygame.sprite.DirtySprite):
     def damage(self, weapon):
         if self.killable:
             self.health -= weapon.damage
-            logging.debug('%s hit by %s\'s %s for %s damage!' % (self, weapon.owner, weapon, weapon.damage))
             if self.health<=0:
                 self.die()
     
