@@ -75,6 +75,9 @@ class Map(object):
         else:
             logging.debug('self.actors doesn\'t exist!')
         
+    def setActorImage(self, actor):
+        actor.image = self.actorsScaled[actor.appearance]
+
     def setActorSize(self, size):
         self.actorSize = size
         self.mobSize = Loc(self.actorSize, self.actorSize)
@@ -83,7 +86,8 @@ class Map(object):
         if self.actors:
             self.actorsScaled = self.resizeImages(self.actors, size)
             for mob in self.mobs:
-                mob.image = self.actorsScaled[mob.appearance]
+                self.setActorImage(mob)
+                #mob.image = self.actorsScaled[mob.appearance]
 
     def setViewpoint(self, pos):
         x, y = pos

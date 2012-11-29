@@ -164,8 +164,8 @@ class Game(object):
             validMin, validMax = (BLOCKSIZE+ACTORSIZE, self.level.width*BLOCKSIZE-(BLOCKSIZE+ACTORSIZE))
             validRange = validMax - validMin  
             self.level.mobs = pygame.sprite.Group([Civilian(self.level, Loc(random.random()*validRange + validMin, random.random()*validRange + validMin)) for i in range(25)])
-            self.level.mobs.add([Soldier(self.level, Loc(random.random()*validRange + validMin, random.random()*validRange + validMin)) for i in range(8)])
-            self.level.mobs.add([Zombie(self.level, Loc(random.random()*validRange + validMin, random.random()*validRange + validMin)) for i in range(40)])
+            self.level.mobs.add([Soldier(self.level, Loc(random.random()*validRange + validMin, random.random()*validRange + validMin)) for i in range(5)])
+            self.level.mobs.add([Zombie(self.level, Loc(random.random()*validRange + validMin, random.random()*validRange + validMin)) for i in range(15)])
             self.level.enemies = pygame.sprite.Group([mob for mob in self.level.mobs if isinstance(mob, Zombie)])
             self.level.friendlies = pygame.sprite.Group([mob for mob in self.level.mobs if isinstance(mob, Soldier)])
             self.level.neutrals = pygame.sprite.Group([mob for mob in self.level.mobs if isinstance(mob, Civilian)])

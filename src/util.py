@@ -55,7 +55,6 @@ class Loc():
         return [self.directionTo(other), self.distanceTo(other)] 
          
     def distanceTo(self, other):
-        #return math.sqrt((self.x-other.x)**2 + (self.y-other.y)**2)
         return math.hypot(self.x-other.x, self.y-other.y)
  
     def directionTo(self, other):

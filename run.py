@@ -4,6 +4,7 @@ import pygame
 from pygame.locals import *
 from src.game import Game
 from src.settings import Settings
+#import cProfile
 
 logging.getLogger().setLevel('DEBUG')
 file_root = os.getcwd()
