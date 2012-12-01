@@ -8,6 +8,7 @@ import pickle
 import time
 from util import *
 from constants import *
+from actor import *
 
 class MapTile(object):
     def __init__(self):
@@ -104,13 +105,17 @@ class Map(object):
     def isInRange(self, viewer, target, range):
         return viewer.loc.distanceTo(target.loc)<=range
 
-    def getVisibleMobs(self, viewers = None):
+    def getVisibleMobs(self, viewers = None, mobs = None):
         visible = []
         if not viewers:
             viewers = self.friendlies
+        if not mobs:
+            mobs = self.mobs
         for v in viewers:
-            for m in self.mobs:
-                if self.isInRange(v, m, v.senseRadius):
+            for m in mobs:
+                #if self.isInRange(v, m, v.senseRadius):
+                #if v.loc.distanceTo(m.loc)<=v.senseRadius:
+                if math.hypot(v.loc.x-m.loc.x, v.loc.y-m.loc.y)<=v.senseRadius:
                     visible.append(m)
         return visible
 
@@ -156,6 +161,24 @@ class Map(object):
         mapYPos = yCentre - ((viewYCentre-y) * BLOCKSIZE/self.tileSize)
         return (mapXPos, mapYPos)
     
+    def sortMobs(self):
+        self.friendlies.empty()
+        self.neutrals.empty()
+        self.enemies.empty()
+        self.friendlies.add([m for m in self.mobs if m.__class__.__name__ == 'Soldier'])
+        self.neutrals.add([m for m in self.mobs if m.__class__.__name__ == 'Civilian'])
+        self.enemies.add([m for m in self.mobs if m.__class__.__name__ == 'Zombie'])
+            
+
+    def addMob(self, mob):
+        self.mobs.add(mob)
+        if mob.__class__.__name__ == 'Soldier':
+            self.friendlies.add(mob)
+        if mob.__class__.__name__ == 'Civilian':
+            self.neutrals.add(mob)
+        if mob.__class__.__name__ == 'Zombie':
+            self.enemies.add(mob)
+        
     def renderMobs(self, target, mobs=None):
         if not mobs:
             mobs = self.mobs

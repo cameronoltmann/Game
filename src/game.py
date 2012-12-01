@@ -46,10 +46,13 @@ class Game(object):
         self.screen.blit(self.background, (0, 0))
         self.level.renderMobs(self.mapPortOverlay)
         if self.editMode:
-            self.screen.blit(self.systemFont.render("Edit", 0, (255,0,0)), (0,0))
+            self.screen.blit(self.systemFont.render('Edit', 0, (255,0,0)), (0,0))
             cursor_color=RED
         else:
             cursor_color=GREEN
+        self.screen.blit(self.systemFont.render('S: %s' % len(self.level.friendlies), 0, GREEN), (self.width-35, 20))
+        self.screen.blit(self.systemFont.render('C: %s' % len(self.level.neutrals), 0, GRAY), (self.width-35, 35))
+        self.screen.blit(self.systemFont.render('Z: %s' % len(self.level.enemies), 0, RED), (self.width-35, 50))
         if mapTile:
             tileULC = scaleCoords(mapTile, BLOCKSIZE)
             screenULC = self.level.transformToScreenspace(self.mapPort, tileULC)
@@ -134,10 +137,14 @@ class Game(object):
             self.framecount += 1
             curTime = time.time()
             elapsed = curTime-self.startTime
-            if elapsed>=1:
+            shortCount = curTime-self.frameTime
+            if shortCount>=1:
                 logging.debug("FPS: %f" % (self.framecount/elapsed))
-                self.startTime=curTime
-                self.framecount=0
+                #self.startTime=curTime
+                self.frameTime = curTime
+            #if elapsed>=30:
+            #    self.done = True
+                
         # Exit game
         self.quit()
 
@@ -161,12 +168,10 @@ class Game(object):
             logging.debug('generating mobs')
             validMin, validMax = (BLOCKSIZE+ACTORSIZE, self.level.width*BLOCKSIZE-(BLOCKSIZE+ACTORSIZE))
             validRange = validMax - validMin  
-            self.level.mobs = pygame.sprite.Group([Civilian(self.level, Loc(random.random()*validRange + validMin, random.random()*validRange + validMin)) for i in range(25)])
-            self.level.mobs.add([Soldier(self.level, Loc(random.random()*validRange + validMin, random.random()*validRange + validMin)) for i in range(5)])
-            self.level.mobs.add([Zombie(self.level, Loc(random.random()*validRange + validMin, random.random()*validRange + validMin)) for i in range(5)])
-            self.level.enemies = pygame.sprite.Group([mob for mob in self.level.mobs if isinstance(mob, Zombie)])
-            self.level.friendlies = pygame.sprite.Group([mob for mob in self.level.mobs if isinstance(mob, Soldier)])
-            self.level.neutrals = pygame.sprite.Group([mob for mob in self.level.mobs if isinstance(mob, Civilian)])
+            self.level.mobs = pygame.sprite.Group([Civilian(self.level, Loc(random.random()*validRange + validMin, random.random()*validRange + validMin)) for i in range(50)])
+            self.level.mobs.add([Soldier(self.level, Loc(random.random()*validRange + validMin, random.random()*validRange + validMin)) for i in range(1)])
+            self.level.mobs.add([Zombie(self.level, Loc(random.random()*validRange + validMin, random.random()*validRange + validMin)) for i in range(1)])
+            self.level.sortMobs()
             logging.debug('%s %s %s %s' % (len(self.level.mobs), len(self.level.enemies), len(self.level.friendlies), len(self.level.neutrals)))
         self.mapPortRect = self.level.fitTo(self.width, self.height)
         mapSize = mapWidth, mapHeight = self.level.getSize()
@@ -179,7 +184,7 @@ class Game(object):
         self.mapPortOverlay = self.screen.subsurface(self.mapPortRect)
         self.level.render(self.mapPort)
         self.framecount=0
-        self.startTime=time.time()
+        self.startTime=self.frameTime=time.time()
         self.editMode = False
         self.systemFont = pygame.font.SysFont("None", 16)
         self.drawing = False

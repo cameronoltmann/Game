@@ -7,11 +7,41 @@ Created on Nov 11, 2012
 import math
 import logging
 
+from functools import update_wrapper
+
+def decorator(d):
+    "Make function d a decorator: d wraps function fn."
+    def _d(fn):
+        return update_wrapper(d(fn), fn)
+    update_wrapper(_d, d)
+    return d
+
+@decorator
+def memo(f):
+    """Decorator that caches return value for each call to f(args).
+    Then when called again with same args, returns cached value."""
+    cache = {}
+    def _f(*args):
+        try:
+            return cache[args]
+        except KeyError:
+            cache[args] = result = f(*args)
+            return result
+        except TypeError:
+            # some element can't be a dict key
+            return f(args)
+    return _f
+
+
 def addCoords(a, b):
     return (a[0]+b[0], a[1]+b[1])
 
 def scaleCoords(pos, scale):
     return (pos[0]*scale, pos[1]*scale)
+
+
+
+
 
 class Loc():
     '''
