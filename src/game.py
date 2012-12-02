@@ -20,6 +20,8 @@ from tilemap import *
 class Game(object):
     resourcePath = 'res/'
     fps = 0
+    idlecount = 0
+    play = True
     
     def __init__(self, **kwargs):
         pygame.init()
@@ -31,12 +33,15 @@ class Game(object):
         self.width, self.height = self.size
         self.screen = pygame.display.set_mode(self.size, self.mode)
         self.clock = pygame.time.Clock()
+        self.bannerFont = pygame.font.Font(self.resourcePath+'drip.ttf', 48)
         Game.resourcePath = self.resourcePath
         Actor.setInit(**{'resourcePath': Game.resourcePath})
         # Initialize input state
         self.keyState={}
         self.mouseState={}
-        self.setup()
+        while self.play:
+            self.setup()
+            self.play = self.gameLoop()
 
     def quit(self):
         self.level.save()
@@ -51,10 +56,6 @@ class Game(object):
             cursor_color=RED
         else:
             cursor_color=GREEN
-        self.screen.blit(self.systemFont.render('FPS: %s' % round(self.fps, 1), 0, WHITE), (self.width-60, 5))
-        self.screen.blit(self.systemFont.render('S: %s' % len(self.level.friendlies), 0, GREEN), (self.width-45, 20))
-        self.screen.blit(self.systemFont.render('C: %s' % len(self.level.neutrals), 0, GRAY1), (self.width-45, 35))
-        self.screen.blit(self.systemFont.render('Z: %s' % len(self.level.enemies), 0, RED), (self.width-45, 50))
         if mapTile:
             tileULC = scaleCoords(mapTile, BLOCKSIZE)
             screenULC = self.level.transformToScreenspace(self.mapPort, tileULC)
@@ -63,6 +64,25 @@ class Game(object):
                          self.level.tileSize,
                          self.level.tileSize)
             pygame.draw.rect(self.mapPortOverlay, cursor_color, tile_rect, max((self.level.tileSize/8,2)))
+        # Display UI
+        self.screen.blit(self.systemFont.render('FPS: %s' % round(self.fps, 1), 1, WHITE), (self.width-60, 5))
+        self.screen.blit(self.systemFont.render('S: %s' % self.fc, 1, GREEN), (self.width-45, 20))
+        self.screen.blit(self.systemFont.render('C: %s' % self.nc, 1, GRAY1), (self.width-45, 35))
+        self.screen.blit(self.systemFont.render('Z: %s' % self.zc, 1, RED), (self.width-45, 50))
+        # Display banner
+        bannerTop = self.height/2
+        if self.fc+self.nc == 0:
+            bannerText = 'NO HUMANS SURVIVE'
+            bannerColor = RED
+            bannerSize = x, y = self.bannerFont.size(bannerText)
+            self.screen.blit(self.bannerFont.render(bannerText, 1, bannerColor), ((self.width-x)/2, bannerTop))
+            bannerTop += y+5
+        if self.zc == 0:
+            bannerText = 'NO ZOMBIES REMAIN'
+            bannerColor = GREEN
+            bannerSize = x, y = self.bannerFont.size(bannerText)
+            self.screen.blit(self.bannerFont.render(bannerText, 1, bannerColor), ((self.width-x)/2, bannerTop))
+            bannerTop += y+5
         pygame.display.flip()
         for mob in self.level.mobs:
             mob.highlight = []
@@ -77,6 +97,7 @@ class Game(object):
             return self.level.tileByPos(mapPos)
         
     def gameLoop(self):
+        replay = False
         while not self.done:
             self.clock.tick(60)
         
@@ -90,7 +111,10 @@ class Game(object):
                     self.keyState[event.key]=True
                     if event.key == pygame.K_BACKQUOTE:
                         self.editMode = not self.editMode
-                    elif event.key ==pygame.K_ESCAPE:
+                    elif event.key == pygame.K_ESCAPE:
+                        self.done = True
+                    elif event.key == pygame.K_r:
+                        replay = True
                         self.done = True
                 elif event.type == pygame.KEYUP:
                     self.keyState[event.key] = False
@@ -137,6 +161,9 @@ class Game(object):
                 self.level.setVisible(self.level.mobs)
             else:
                 self.level.setVisible(self.level.mobs)
+            self.fc = len(self.level.friendlies)
+            self.nc = len(self.level.neutrals)
+            self.zc = len(self.level.enemies)
             self.render()
             self.framecount += 1
             curTime = time.time()
@@ -147,11 +174,17 @@ class Game(object):
                 self.fps = self.framecount/elapsed
                 #self.startTime=curTime
                 self.frameTime = curTime
-            #if elapsed>=30:
-            #    self.done = True
+            if (self.fc + self.nc == 0) or (self.zc == 0):
+                self.idlecount += 1
+            else:
+                self.idlecount = 0
+            if self.idlecount>300:
+                replay = True
+                self.done = True
                 
         # Exit game
         self.quit()
+        return replay
 
     def setup(self):
         #self.balls = pygame.sprite.RenderPlain([Ball() for i in range(100)])
@@ -194,5 +227,4 @@ class Game(object):
         self.systemFont = pygame.font.SysFont("None", 16)
         self.drawing = False
         self.done = False
-        self.gameLoop()
         
