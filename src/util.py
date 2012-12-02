@@ -99,3 +99,7 @@ class Loc():
             else:
                 angle += math.pi
         return angle 
+
+    @classmethod
+    def fromVector(cls, direction, magnitude):
+        return Loc(magnitude*math.cos(direction), -magnitude*math.sin(direction))

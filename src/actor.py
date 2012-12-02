@@ -32,6 +32,7 @@ class Attack(object):
     
     def attack(self, target):
         if self.ready() and self.canHit(target):
+            self.owner.addHighlight(GREEN, self.range, int(self.damage))
             target.damage(self)
             self.onHit(target)
             self.countdown = self.delay
@@ -99,16 +100,17 @@ class Strategy(object):
 class StrategyRandom(Strategy):
     @classmethod
     def think(cls, actor):
-        if random.random()>actor.consistency or actor.speed>actor.maxSpeed/2:
-            actor.speed = random.random()*actor.maxSpeed/2
-            actor.direction = actor.direction-math.pi/2 + random.random()*math.pi
+        if random.random()>actor.consistency:
+            impulse = Loc().addVector(actor.direction-math.pi/2+random.random()*math.pi, random.random()*.1)
+            actor.addImpulse(impulse)
     
 class StrategyChase(Strategy):
     @classmethod
     def think(cls, actor):
         if actor.target:
-            actor.speed = min(actor.maxSpeed, actor.loc.distanceTo(actor.target.loc))
-            actor.direction = actor.loc.directionTo(actor.target.loc)
+            if actor.loc.distanceTo(actor.target.loc)>ACTORSIZE/2:
+                impulse = Loc().addVector(actor.loc.directionTo(actor.target.loc), actor.riled/MAX_RILED)
+                actor.addImpulse(impulse)
 
 class StrategyAttackNearestZombie(Strategy):
     @classmethod
@@ -138,7 +140,6 @@ class StrategyFleeZombies(Strategy):
         visibleMobs = actor.level.getVisibleMobs([actor], actor.level.friendlies.sprites() + actor.level.neutrals.sprites())
         crowdFactor = math.sqrt(len(visibleMobs)) * actor.senseRadius
         
-        visibleZombies = 0
         for mob in visibleMobs:
             distance = actor.loc.distanceTo(mob.loc)
             direction = actor.loc.directionTo(mob.loc)
@@ -165,6 +166,9 @@ class StrategyFleeZombies(Strategy):
         impulseVector = Loc(0, 0).getVector(impulse)
         impulseVector[1] = min(impulseVector[1], actor.maxSpeed)
         actor.direction, actor.speed = impulseVector
+        if actor.riled and (actor.speed<actor.maxSpeed):
+            actor.speed = min(actor.maxSpeed, actor.speed*1.1)
+            
 
 class StrategyCivilian(Strategy):
     @classmethod
@@ -184,25 +188,50 @@ class StrategyZombie(Strategy):
     @classmethod
     def think(cls, actor):
         actor.updateTargetDistance()
-        visibleMobs = actor.level.getVisibleMobs([actor])
+        visibleMobs = actor.level.getVisibleMobs([actor], actor.level.friendlies.sprites() + actor.level.neutrals.sprites())
         visibleTargets = 0
         for mob in visibleMobs:
-            if (not actor.target) and isinstance(mob, Zombie):
-                if mob.target:
-                    actor.setTarget(mob.target)
-                    visibleTargets += 1
-            elif not isinstance(mob, (Zombie, Corpse)):
-                if actor.loc.distanceTo(mob.loc)<actor.targetDistance*.66:
-                    actor.target = mob
-                visibleTargets += 1
-        if not visibleTargets:
+            if actor.loc.distanceTo(mob.loc)<actor.targetDistance*.66:
+                actor.setTarget(mob)
+            visibleTargets += 1
+            
+        visibleZombies = actor.level.getVisibleMobs([actor], actor.level.enemies)
+        impulse = Loc(0, 0)
+        if visibleTargets:
+            actor.rile()
+        else:
             actor.target = None
+        for mob in visibleZombies:
+            if mob is not actor:
+                actor.rile(mob.riled)
+                distance = actor.loc.distanceTo(mob.loc)
+                direction = actor.loc.directionTo(mob.loc)
+                away = direction+math.pi
+                if distance<ACTORSIZE*2:
+                    impulse = impulse.addVector(away, ACTORSIZE/max(distance, 1)**2)
+                #if (not visibleTargets) and (random.random()>.9):
+                if not visibleTargets:
+                    '''
+                    if mob.target:
+                        impulse = impulse.addVector(actor.loc.directionTo(mob.target.loc), actor.maxSpeed*.1*actor.riled/MAX_RILED)
+                        actor.addHighlight()
+                    #elif (mob.distanceMoved>mob.maxSpeed/2) and mob.riled:
+                    elif mob.riled:
+                    '''
+                    if mob.riled:
+                        impulse = impulse.addVector(actor.loc.directionTo(mob.loc), actor.maxSpeed*.1*actor.riled/MAX_RILED)
+                        impulse = impulse.addVector(mob.direction, actor.maxSpeed*.1*actor.riled/MAX_RILED)
+                        actor.addHighlight(GRAY1)
+        if impulse.loc != (0, 0):
+            actor.addImpulse(impulse)
         if actor.target:
             for weapon in actor.weapons:
                 weapon.attack(actor.target)
             StrategyChase.think(actor)
-        else:
+        if not actor.riled:
             StrategyRandom.think(actor)
+            if actor.speed>actor.maxSpeed/5:
+                actor.speed *= .98
 
 class Actor(pygame.sprite.DirtySprite):
     '''
@@ -228,7 +257,10 @@ class Actor(pygame.sprite.DirtySprite):
     targetDistance = 1e+15
     thinkInterval = 10
     thinkCount = 0
-     
+    highlight = []
+    distanceMoved = 0
+    riled = 0
+    
     def __init__(self, level = None, loc = None):
         super(Actor, self).__init__()
         self.blendmode = BLEND_MIN
@@ -274,8 +306,10 @@ class Actor(pygame.sprite.DirtySprite):
         
     def damage(self, weapon):
         if self.killable:
+            self.addHighlight(RED, ACTORSIZE*.8, max(int(weapon.damage*2), 1))
             self.health -= weapon.damage
             if self.health<=0:
+                logging.debug('A %s died of %s' % (self.__class__.__name__, weapon.__class__.__name__))
                 self.die()
     
     def setMap(self, level):
@@ -285,6 +319,7 @@ class Actor(pygame.sprite.DirtySprite):
 
     def moveTo(self, loc):
         if self.level.canMoveTo(self, loc):
+            self.distanceMoved = self.loc.distanceTo(loc)
             self.loc = loc
             return True
         return False
@@ -294,10 +329,14 @@ class Actor(pygame.sprite.DirtySprite):
         if self.moveTo(self.loc.addVector(direction, speed)):
             return True
         quadrant = int((direction / (2*math.pi)) * 4)
-        if self.moveTo(self.loc.addVector(quadrant*2*math.pi/4, speed)):
+        nextDir = quadrant*2*math.pi/4
+        if self.moveTo(self.loc.addVector(nextDir, speed)):
+            self.direction = nextDir + random.random()*(nextDir-self.direction)
             return True
         quadrant += 1
+        nextDir = quadrant*2*math.pi/4
         if self.moveTo(self.loc.addVector(quadrant*2*math.pi/4, speed)):
+            self.direction = nextDir + random.random()*(nextDir-self.direction)
             return True
     
     def updateTargetDistance(self):
@@ -315,11 +354,19 @@ class Actor(pygame.sprite.DirtySprite):
             self.thinkCount -= 1
             return False
         return True
+
+    def rile(self, r=MAX_RILED+INC_RILED):
+        if r>self.riled+INC_RILED:
+            self.riled = self.maxRiled
+
+    def calm(self):
+        self.riled = max(self.riled-DEC_RILED, 0)
             
     def update(self):
-        #if self.tick() and self.strategy:
-        #    self.strategy.think(self)
-        #    self.thinkCount = self.thinkInterval
+        self.updateTargetDistance()
+        if not self.target:
+            self.calm()
+        self.maxRiled = min(self.riled+INC_RILED, MAX_RILED)
         if self.strategy:
             self.strategy.think(self)
         self.move(self.direction, self.speed)
@@ -329,11 +376,24 @@ class Actor(pygame.sprite.DirtySprite):
             if effect.ready():
                 effect.attack(self)
             effect.tick()
+        if self.riled:
+            self.addHighlight(WHITE, self.riled*ACTORSIZE*.25/MAX_RILED, 0)
         
     def canTraverse(self, loc):
         if self.level.getTile(self.level.tileByPos(loc)) == TILE_WALL:
             return False
         return True
+    
+    def addHighlight(self, color = GRAY, radius = None, width = 1):
+        if radius == None:
+            radius = self.senseRadius
+        if radius:
+            self.highlight.append((color, radius, width))
+    
+    def addImpulse(self, impulse):
+        impulse = impulse.addVector(self.direction, self.speed)
+        self.direction, self.speed = Loc().getVector(impulse)
+        self.speed = min(self.speed, self.maxSpeed)
 
 class Zombie(Actor):
     appearance = ZOMBIE

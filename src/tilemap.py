@@ -107,9 +107,9 @@ class Map(object):
 
     def getVisibleMobs(self, viewers = None, mobs = None):
         visible = []
-        if not viewers:
+        if viewers == None:
             viewers = self.friendlies
-        if not mobs:
+        if mobs == None:
             mobs = self.mobs
         for v in viewers:
             for m in mobs:
@@ -150,7 +150,7 @@ class Map(object):
         viewCentre = viewXCentre, viewYCentre = (target.get_rect()[2]/2, target.get_rect()[3]/2)
         screenXPos = viewXCentre - ((xCentre-x) * self.tileSize/BLOCKSIZE)
         screenYPos = viewYCentre - ((yCentre-y) * self.tileSize/BLOCKSIZE)
-        return (screenXPos, screenYPos)
+        return (int(screenXPos), int(screenYPos))
     
     def transformToMapspace(self, target, pos):  
         x, y = pos
@@ -184,10 +184,12 @@ class Map(object):
             mobs = self.mobs
         for mob in mobs.sprites():
             mob.rect = pygame.Rect((self.mobOffset+self.transformToScreenspace(target, mob.loc.loc)).loc, self.mobSize.loc)
-            #logging.debug('%s = %s' % (mob.loc, mob.rect))
-        #mobs.draw(target)
         self.visible.draw(target)
-        #self.friendlies.draw(target)
+        target.lock()
+        for s in self.visible:
+            for h in s.highlight:
+                pygame.draw.circle(target, h[0], self.transformToScreenspace(target, s.loc.loc), int(h[1]*self.scale), h[2])
+        target.unlock()
         
     def render(self, target):
         mapSize = mapWidth, mapHeight = self.getSize()

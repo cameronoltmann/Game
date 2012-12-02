@@ -19,6 +19,7 @@ from tilemap import *
 
 class Game(object):
     resourcePath = 'res/'
+    fps = 0
     
     def __init__(self, **kwargs):
         pygame.init()
@@ -50,9 +51,10 @@ class Game(object):
             cursor_color=RED
         else:
             cursor_color=GREEN
-        self.screen.blit(self.systemFont.render('S: %s' % len(self.level.friendlies), 0, GREEN), (self.width-35, 20))
-        self.screen.blit(self.systemFont.render('C: %s' % len(self.level.neutrals), 0, GRAY), (self.width-35, 35))
-        self.screen.blit(self.systemFont.render('Z: %s' % len(self.level.enemies), 0, RED), (self.width-35, 50))
+        self.screen.blit(self.systemFont.render('FPS: %s' % round(self.fps, 1), 0, WHITE), (self.width-60, 5))
+        self.screen.blit(self.systemFont.render('S: %s' % len(self.level.friendlies), 0, GREEN), (self.width-45, 20))
+        self.screen.blit(self.systemFont.render('C: %s' % len(self.level.neutrals), 0, GRAY1), (self.width-45, 35))
+        self.screen.blit(self.systemFont.render('Z: %s' % len(self.level.enemies), 0, RED), (self.width-45, 50))
         if mapTile:
             tileULC = scaleCoords(mapTile, BLOCKSIZE)
             screenULC = self.level.transformToScreenspace(self.mapPort, tileULC)
@@ -62,6 +64,8 @@ class Game(object):
                          self.level.tileSize)
             pygame.draw.rect(self.mapPortOverlay, cursor_color, tile_rect, max((self.level.tileSize/8,2)))
         pygame.display.flip()
+        for mob in self.level.mobs:
+            mob.highlight = []
 
     def mapTileByPos(self, pos):
         '''
@@ -139,7 +143,8 @@ class Game(object):
             elapsed = curTime-self.startTime
             shortCount = curTime-self.frameTime
             if shortCount>=1:
-                logging.debug("FPS: %f" % (self.framecount/elapsed))
+                #logging.debug("FPS: %f" % (self.framecount/elapsed))
+                self.fps = self.framecount/elapsed
                 #self.startTime=curTime
                 self.frameTime = curTime
             #if elapsed>=30:
@@ -170,7 +175,7 @@ class Game(object):
             validRange = validMax - validMin  
             self.level.mobs = pygame.sprite.Group([Civilian(self.level, Loc(random.random()*validRange + validMin, random.random()*validRange + validMin)) for i in range(50)])
             self.level.mobs.add([Soldier(self.level, Loc(random.random()*validRange + validMin, random.random()*validRange + validMin)) for i in range(1)])
-            self.level.mobs.add([Zombie(self.level, Loc(random.random()*validRange + validMin, random.random()*validRange + validMin)) for i in range(1)])
+            self.level.mobs.add([Zombie(self.level, Loc(random.random()*validRange + validMin, random.random()*validRange + validMin)) for i in range(2)])
             self.level.sortMobs()
             logging.debug('%s %s %s %s' % (len(self.level.mobs), len(self.level.enemies), len(self.level.friendlies), len(self.level.neutrals)))
         self.mapPortRect = self.level.fitTo(self.width, self.height)
