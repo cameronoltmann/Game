@@ -128,32 +128,45 @@ class StrategyAttackNearestZombie(Strategy):
                 if nearestZombie:
                     weapon.attack(nearestZombie)
         
-class StrategyFleeZombies(Strategy):
+class StrategyHuddle(Strategy):
     @classmethod
     def think(cls, actor):
-        #visibleMobs = actor.level.getVisibleMobs([actor])
-        # search for zombies
+        #if isinstance(actor, (Soldier, Civilian)):
+        if (actor.level.friendlies in actor.groups()) or (actor.level.neutrals in actor.groups()): 
+            friendlies = actor.level.getVisibleMobs([actor], actor.level.friendlies.sprites() + actor.level.neutrals.sprites())
+        #elif isinstance(actor, Zombie):
+        elif (actor.level.enemies in actor.groups()):
+            friendlies = actor.level.getVisibleMobs([actor], actor.level.enemies.sprites())
+        else:
+            return
+        friendlies = list(set(friendlies) - set((actor,)))
+        crowdFactor = math.sqrt(len(friendlies)) * actor.senseRadius
         impulse = Loc(0, 0)
-        zombies = actor.level.getVisibleMobs([actor], actor.level.enemies)
-        for z in zombies:
-            impulse = impulse.addVector(actor.loc.directionTo(z.loc)+math.pi, actor.senseRadius/max(actor.loc.distanceTo(z.loc)/2, 1))
-        visibleMobs = actor.level.getVisibleMobs([actor], actor.level.friendlies.sprites() + actor.level.neutrals.sprites())
-        crowdFactor = math.sqrt(len(visibleMobs)) * actor.senseRadius
-        
-        for mob in visibleMobs:
+        for mob in friendlies:
             distance = actor.loc.distanceTo(mob.loc)
             direction = actor.loc.directionTo(mob.loc)
             away = direction + math.pi
-            '''
-            if isinstance(mob, Zombie):
-                impulse = impulse.addVector(away, actor.senseRadius/max(distance, 1))
-            elif mob != actor:
-            '''
-            
-            if mob != actor:
-                if distance<ACTORSIZE:
-                    impulse = impulse.addVector(away, ACTORSIZE/max(distance, 1))
-                impulse = impulse.addVector(direction, distance/crowdFactor)
+            if distance<ACTORSIZE:
+                impulse = impulse.addVector(away, ACTORSIZE/max(distance, 1))
+            impulse = impulse.addVector(direction, (distance*mob.bravery)/(crowdFactor*actor.bravery))
+        actor.addImpulse(impulse)
+        
+class StrategyFlee(Strategy):
+    @classmethod
+    def think(cls, actor):
+        if (actor.level.friendlies in actor.groups()) or (actor.level.neutrals in actor.groups()): 
+            enemies = actor.level.getVisibleMobs([actor], actor.level.enemies)
+        elif (actor.level.enemies in actor.groups()):
+            enemies = actor.level.getVisibleMobs([actor], actor.level.friendlies.sprites() + actor.level.neutrals.sprites())
+        else:
+            return
+        impulse = Loc(0, 0)
+        actor.fleeing = False
+        for mob in enemies:
+            distance = actor.loc.distanceTo(mob.loc)
+            if distance<actor.senseRadius/actor.bravery:
+                impulse = impulse.addVector(actor.loc.directionTo(mob.loc)+math.pi, actor.senseRadius/actor.bravery/max(actor.loc.distanceTo(mob.loc)/2, 1))
+            actor.fleeing = True
         x, y = actor.loc.loc
         if not actor.canTraverse((x, y-BLOCKSIZE)):
             impulse = impulse.addVector(math.pi*1.5, (BLOCKSIZE - y % BLOCKSIZE) * WALL_PHOBIA)
@@ -163,26 +176,23 @@ class StrategyFleeZombies(Strategy):
             impulse = impulse.addVector(math.pi*.5, (y % BLOCKSIZE) * WALL_PHOBIA)
         if not actor.canTraverse((x-BLOCKSIZE, y)):
             impulse = impulse.addVector(0, (BLOCKSIZE - x % BLOCKSIZE) * WALL_PHOBIA)
-        impulseVector = Loc(0, 0).getVector(impulse)
-        impulseVector[1] = min(impulseVector[1], actor.maxSpeed)
-        actor.direction, actor.speed = impulseVector
-        if actor.riled and (actor.speed<actor.maxSpeed):
-            actor.speed = min(actor.maxSpeed, actor.speed*1.1)
-            
+        actor.addImpulse(impulse)
 
 class StrategyCivilian(Strategy):
     @classmethod
     def think(cls, actor):
         StrategyAttackNearestZombie.think(actor)
-        StrategyFleeZombies.think(actor)
-        if actor.speed == 0.0:
+        StrategyHuddle.think(actor)
+        StrategyFlee.think(actor)
+        if not actor.fleeing:
             StrategyRandom.think(actor)
 
 class StrategySoldier(Strategy):
     @classmethod
     def think(cls, actor):
         StrategyAttackNearestZombie.think(actor)
-        StrategyFleeZombies.think(actor)
+        StrategyHuddle.think(actor)
+        StrategyFlee.think(actor)
 
 class StrategyZombie(Strategy):
     @classmethod
@@ -194,7 +204,6 @@ class StrategyZombie(Strategy):
             if actor.loc.distanceTo(mob.loc)<actor.targetDistance*.66:
                 actor.setTarget(mob)
             visibleTargets += 1
-            
         visibleZombies = actor.level.getVisibleMobs([actor], actor.level.enemies)
         impulse = Loc(0, 0)
         if visibleTargets:
@@ -209,15 +218,7 @@ class StrategyZombie(Strategy):
                 away = direction+math.pi
                 if distance<ACTORSIZE*2:
                     impulse = impulse.addVector(away, ACTORSIZE/max(distance, 1)**2)
-                #if (not visibleTargets) and (random.random()>.9):
                 if not visibleTargets:
-                    '''
-                    if mob.target:
-                        impulse = impulse.addVector(actor.loc.directionTo(mob.target.loc), actor.maxSpeed*.1*actor.riled/MAX_RILED)
-                        actor.addHighlight()
-                    #elif (mob.distanceMoved>mob.maxSpeed/2) and mob.riled:
-                    elif mob.riled:
-                    '''
                     if mob.riled:
                         impulse = impulse.addVector(actor.loc.directionTo(mob.loc), actor.maxSpeed*.1*actor.riled/MAX_RILED)
                         impulse = impulse.addVector(mob.direction, actor.maxSpeed*.1*actor.riled/MAX_RILED)
@@ -260,6 +261,8 @@ class Actor(pygame.sprite.DirtySprite):
     highlight = []
     distanceMoved = 0
     riled = 0
+    fleeing = False
+    bravery = 1.0
     
     def __init__(self, level = None, loc = None):
         super(Actor, self).__init__()
@@ -355,8 +358,8 @@ class Actor(pygame.sprite.DirtySprite):
             return False
         return True
 
-    def rile(self, r=MAX_RILED+INC_RILED):
-        if r>self.riled+INC_RILED:
+    def rile(self, r=MAX_RILED+RILE_FACTOR):
+        if r>self.riled+RILE_FACTOR:
             self.riled = self.maxRiled
 
     def calm(self):
@@ -408,6 +411,7 @@ class Soldier(Actor):
     maxSpeed = BASE_SPEED * SOLDIER_SPEED
     strategy = StrategySoldier
     startingWeapons = [Rifle, Punch]
+    bravery = 2.5
 
 class Civilian(Actor):
     appearance = CIVILIAN

@@ -100,7 +100,6 @@ class Game(object):
         replay = False
         while not self.done:
             self.clock.tick(60)
-        
             for event in pygame.event.get():
                 if event.type in (pygame.MOUSEBUTTONDOWN, pygame.MOUSEBUTTONUP, pygame.MOUSEMOTION):
                     self.mouseState['pos'] = event.pos
@@ -178,7 +177,7 @@ class Game(object):
                 self.idlecount += 1
             else:
                 self.idlecount = 0
-            if self.idlecount>300:
+            if self.idlecount>IDLE_TIME:
                 replay = True
                 self.done = True
                 
@@ -206,9 +205,12 @@ class Game(object):
             logging.debug('generating mobs')
             validMin, validMax = (BLOCKSIZE+ACTORSIZE, self.level.width*BLOCKSIZE-(BLOCKSIZE+ACTORSIZE))
             validRange = validMax - validMin  
-            self.level.mobs = pygame.sprite.Group([Civilian(self.level, Loc(random.random()*validRange + validMin, random.random()*validRange + validMin)) for i in range(50)])
-            self.level.mobs.add([Soldier(self.level, Loc(random.random()*validRange + validMin, random.random()*validRange + validMin)) for i in range(1)])
-            self.level.mobs.add([Zombie(self.level, Loc(random.random()*validRange + validMin, random.random()*validRange + validMin)) for i in range(2)])
+            s = NUM_SOLDIERS/2+int(random.random()*NUM_SOLDIERS)
+            c = NUM_CIVILIANS/2+int(random.random()*NUM_CIVILIANS)
+            z = NUM_ZOMBIES/2+int(random.random()*NUM_ZOMBIES)
+            self.level.mobs = pygame.sprite.Group([Civilian(self.level, Loc(random.random()*validRange + validMin, random.random()*validRange + validMin)) for i in range(c)])
+            self.level.mobs.add([Soldier(self.level, Loc(random.random()*validRange + validMin, random.random()*validRange + validMin)) for i in range(s)])
+            self.level.mobs.add([Zombie(self.level, Loc(random.random()*validRange + validMin, random.random()*validRange + validMin)) for i in range(z)])
             self.level.sortMobs()
             logging.debug('%s %s %s %s' % (len(self.level.mobs), len(self.level.enemies), len(self.level.friendlies), len(self.level.neutrals)))
         self.mapPortRect = self.level.fitTo(self.width, self.height)
