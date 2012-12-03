@@ -9,6 +9,7 @@ import math
 import pygame
 from pygame.locals import *
 
+from game import *
 from tilemap import *
 from util import *
 from constants import *
@@ -79,9 +80,7 @@ class Infection(Attack):
     condition = ON_DEATH
     
     def onKill(self, target):
-        body = Corpse(target.level, target.loc)
-        body.addEffect(Incubate())
-        target.level.mobs.add(body)
+        target.addEffect(Incubate())
 
 class Bite(Attack):
     range = ACTORSIZE
@@ -222,7 +221,8 @@ class StrategyZombie(Strategy):
                     if mob.riled:
                         impulse = impulse.addVector(actor.loc.directionTo(mob.loc), actor.maxSpeed*.1*actor.riled/MAX_RILED)
                         impulse = impulse.addVector(mob.direction, actor.maxSpeed*.1*actor.riled/MAX_RILED)
-                        actor.addHighlight(GRAY1)
+                        if actor.level.game.debugMode:
+                            actor.addHighlight(GRAY1)
         if impulse.loc != (0, 0):
             actor.addImpulse(impulse)
         if actor.target:
@@ -263,6 +263,7 @@ class Actor(pygame.sprite.DirtySprite):
     riled = 0
     fleeing = False
     bravery = 1.0
+    leavesCorpse = 'Corpse'
     
     def __init__(self, level = None, loc = None):
         super(Actor, self).__init__()
@@ -273,6 +274,8 @@ class Actor(pygame.sprite.DirtySprite):
         self.direction = 0.0
         self.weapons = []
         self.effects = []
+        if self.leavesCorpse:
+            self.leavesCorpse = globals()[self.leavesCorpse]
         if self.level:
             self.level.setActorImage(self)
         if self.startingWeapons:
@@ -302,9 +305,11 @@ class Actor(pygame.sprite.DirtySprite):
         for mob in self.level.mobs:
             if mob.target == self:
                 mob.target = None
-        for effect in self.effects:
-            if effect.condition == ON_DEATH:
-                effect.onKill(self)
+        if self.leavesCorpse:
+            body = self.leavesCorpse(self.level, self.loc)
+            for effect in self.effects:
+                if effect.condition == ON_DEATH:
+                    effect.onKill(body)
         self.kill()
         
     def damage(self, weapon):
@@ -380,7 +385,8 @@ class Actor(pygame.sprite.DirtySprite):
                 effect.attack(self)
             effect.tick()
         if self.riled:
-            self.addHighlight(WHITE, self.riled*ACTORSIZE*.25/MAX_RILED, 0)
+            if self.level.game.debugMode:
+                self.addHighlight(WHITE, self.riled*ACTORSIZE*.25/MAX_RILED, 0)
         
     def canTraverse(self, loc):
         if self.level.getTile(self.level.tileByPos(loc)) == TILE_WALL:
@@ -424,4 +430,4 @@ class Corpse(Actor):
     maxSpeed = 0
     killable = False
     strategy = None
-    
+    leavesCorpse = None

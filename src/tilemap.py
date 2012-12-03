@@ -27,9 +27,10 @@ class Map(object):
         self.tiles = []
         self.actors = []
         self.mobs = pygame.sprite.Group()
-        self.enemies = pygame.sprite.Group()
         self.friendlies = pygame.sprite.Group()
         self.neutrals = pygame.sprite.Group()
+        self.enemies = pygame.sprite.Group()
+        self.other = pygame.sprite.Group()
         self.visible = pygame.sprite.Group()
         self.mobOffset = Loc(0, 0)
         self.mobSize = Loc(0, 0)
@@ -38,6 +39,7 @@ class Map(object):
         self.minScale = 0.05
         self.setViewpoint(scaleCoords(self.getSize(), 0.5))
         self.setTileSize(BLOCKSIZE)
+        self.game = None
     
     def loadTiles(self, tileNames, tileSize=None):
         self.tileNames = list(tileNames)
@@ -113,8 +115,6 @@ class Map(object):
             mobs = self.mobs
         for v in viewers:
             for m in mobs:
-                #if self.isInRange(v, m, v.senseRadius):
-                #if v.loc.distanceTo(m.loc)<=v.senseRadius:
                 if math.hypot(v.loc.x-m.loc.x, v.loc.y-m.loc.y)<=v.senseRadius:
                     visible.append(m)
         return visible
@@ -161,34 +161,39 @@ class Map(object):
         mapYPos = yCentre - ((viewYCentre-y) * BLOCKSIZE/self.tileSize)
         return (mapXPos, mapYPos)
     
-    def sortMobs(self):
-        self.friendlies.empty()
-        self.neutrals.empty()
-        self.enemies.empty()
-        self.friendlies.add([m for m in self.mobs if m.__class__.__name__ == 'Soldier'])
-        self.neutrals.add([m for m in self.mobs if m.__class__.__name__ == 'Civilian'])
-        self.enemies.add([m for m in self.mobs if m.__class__.__name__ == 'Zombie'])
-            
-
     def addMob(self, mob):
         self.mobs.add(mob)
         if mob.__class__.__name__ == 'Soldier':
             self.friendlies.add(mob)
-        if mob.__class__.__name__ == 'Civilian':
+        elif mob.__class__.__name__ == 'Civilian':
             self.neutrals.add(mob)
-        if mob.__class__.__name__ == 'Zombie':
+        elif mob.__class__.__name__ == 'Zombie':
             self.enemies.add(mob)
+        else:
+            self.other.add(mob)
         
+    def sortMobs(self):
+        self.friendlies.empty()
+        self.neutrals.empty()
+        self.enemies.empty()
+        for mob in self.mobs:
+            self.addMob(mob)
+
     def renderMobs(self, target, mobs=None):
         if not mobs:
             mobs = self.mobs
         for mob in mobs.sprites():
             mob.rect = pygame.Rect((self.mobOffset+self.transformToScreenspace(target, mob.loc.loc)).loc, self.mobSize.loc)
-        self.visible.draw(target)
+        #self.visible.draw(target)
+        self.other.draw(target)
+        self.neutrals.draw(target)
+        self.enemies.draw(target)
+        self.friendlies.draw(target)
+        
         target.lock()
         for s in self.visible:
             for h in s.highlight:
-                pygame.draw.circle(target, h[0], self.transformToScreenspace(target, s.loc.loc), int(h[1]*self.scale), h[2])
+                pygame.draw.circle(target, h[0], self.transformToScreenspace(target, s.loc.loc), max(int(h[1]*self.scale), h[2]), h[2])
         target.unlock()
         
     def render(self, target):
@@ -271,6 +276,7 @@ class Map(object):
         del data['actors']
         del data['actorsRaw']
         del data['actorsScaled']
+        del data['game']
         for mob in self.mobs:
             mob.image = None
         pickle.dump(data, open(Map.resourcePath+self.filename, 'wb'))

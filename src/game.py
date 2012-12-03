@@ -16,12 +16,12 @@ from actor import *
 from constants import *
 from tilemap import *
 
-
 class Game(object):
     resourcePath = 'res/'
     fps = 0
     idlecount = 0
     play = True
+    debugMode = False
     
     def __init__(self, **kwargs):
         pygame.init()
@@ -51,8 +51,10 @@ class Game(object):
         mapTile = self.mapTileByPos(pygame.mouse.get_pos())
         self.screen.blit(self.background, (0, 0))
         self.level.renderMobs(self.mapPortOverlay)
+        if Game.debugMode:
+            self.screen.blit(self.systemFont.render('Debug', 1, RED), (5, 5))
         if self.editMode:
-            self.screen.blit(self.systemFont.render('Edit', 0, (255,0,0)), (0,0))
+            self.screen.blit(self.systemFont.render('Edit', 1, RED), (5,20))
             cursor_color=RED
         else:
             cursor_color=GREEN
@@ -115,6 +117,8 @@ class Game(object):
                     elif event.key == pygame.K_r:
                         replay = True
                         self.done = True
+                    elif event.key == pygame.K_d:
+                        Game.debugMode = not Game.debugMode
                 elif event.type == pygame.KEYUP:
                     self.keyState[event.key] = False
                 elif event.type == pygame.MOUSEBUTTONDOWN:
@@ -198,19 +202,23 @@ class Game(object):
             logging.debug(self.level)
         except IOError:
             logging.debug('Generating map')
-            self.level = Map((20, 20))
+            self.level = Map((10+random.randrange(30), 10+random.randrange(30)))
+            self.level.game = self
+            logging.debug('Map size: %s x %s' % (self.level.width, self.level.height))
             self.level.filename = 'map.p'
             self.level.loadTiles(['tile0.png', 'tile1.png'])
             self.level.loadActors(['blip.png', 'zombie.png', 'soldier.png', 'civilian.png', 'corpse.png'])
             logging.debug('generating mobs')
-            validMin, validMax = (BLOCKSIZE+ACTORSIZE, self.level.width*BLOCKSIZE-(BLOCKSIZE+ACTORSIZE))
-            validRange = validMax - validMin  
+            validMinX, validMaxX = (BLOCKSIZE+ACTORSIZE, self.level.width*BLOCKSIZE-(BLOCKSIZE+ACTORSIZE))
+            validRangeX = validMaxX - validMinX  
+            validMinY, validMaxY = (BLOCKSIZE+ACTORSIZE, self.level.height*BLOCKSIZE-(BLOCKSIZE+ACTORSIZE))
+            validRangeY = validMaxY - validMinY  
             s = NUM_SOLDIERS/2+int(random.random()*NUM_SOLDIERS)
             c = NUM_CIVILIANS/2+int(random.random()*NUM_CIVILIANS)
             z = NUM_ZOMBIES/2+int(random.random()*NUM_ZOMBIES)
-            self.level.mobs = pygame.sprite.Group([Civilian(self.level, Loc(random.random()*validRange + validMin, random.random()*validRange + validMin)) for i in range(c)])
-            self.level.mobs.add([Soldier(self.level, Loc(random.random()*validRange + validMin, random.random()*validRange + validMin)) for i in range(s)])
-            self.level.mobs.add([Zombie(self.level, Loc(random.random()*validRange + validMin, random.random()*validRange + validMin)) for i in range(z)])
+            self.level.mobs = pygame.sprite.Group([Civilian(self.level, Loc(random.random()*validRangeX + validMinX, random.random()*validRangeY + validMinY)) for i in range(c)])
+            self.level.mobs.add([Soldier(self.level, Loc(random.random()*validRangeX + validMinX, random.random()*validRangeY + validMinY)) for i in range(s)])
+            self.level.mobs.add([Zombie(self.level, Loc(random.random()*validRangeX + validMinX, random.random()*validRangeY + validMinY)) for i in range(z)])
             self.level.sortMobs()
             logging.debug('%s %s %s %s' % (len(self.level.mobs), len(self.level.enemies), len(self.level.friendlies), len(self.level.neutrals)))
         self.mapPortRect = self.level.fitTo(self.width, self.height)
