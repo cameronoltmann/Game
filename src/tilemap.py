@@ -173,6 +173,7 @@ class Map(object):
     def addMob(self, mob):
         mob.level = self
         self.mobs.add(mob)
+        self.setActorImage(mob)
         if mob.__class__.__name__ == 'Soldier':
             self.friendlies.add(mob)
         elif mob.__class__.__name__ == 'Civilian':

@@ -72,20 +72,21 @@ class Game(object):
         self.screen.blit(self.systemFont.render('S: %s' % self.fc, 1, GREEN), (self.width-45, 20))
         self.screen.blit(self.systemFont.render('C: %s' % self.nc, 1, GRAY1), (self.width-45, 35))
         self.screen.blit(self.systemFont.render('Z: %s' % self.zc, 1, RED), (self.width-45, 50))
-        # Display banner
-        bannerTop = self.height/2
-        if self.fc+self.nc == 0:
-            bannerText = 'NO HUMANS SURVIVE'
-            bannerColor = RED
-            bannerSize = x, y = self.bannerFont.size(bannerText)
-            self.screen.blit(self.bannerFont.render(bannerText, 1, bannerColor), ((self.width-x)/2, bannerTop))
-            bannerTop += y+5
-        if self.zc == 0:
-            bannerText = 'NO ZOMBIES REMAIN'
-            bannerColor = GREEN
-            bannerSize = x, y = self.bannerFont.size(bannerText)
-            self.screen.blit(self.bannerFont.render(bannerText, 1, bannerColor), ((self.width-x)/2, bannerTop))
-            bannerTop += y+5
+        if not self.editMode:
+            # Display banner
+            bannerTop = self.height/2
+            if self.fc+self.nc == 0:
+                bannerText = 'NO HUMANS SURVIVE'
+                bannerColor = RED
+                bannerSize = x, y = self.bannerFont.size(bannerText)
+                self.screen.blit(self.bannerFont.render(bannerText, 1, bannerColor), ((self.width-x)/2, bannerTop))
+                bannerTop += y+5
+            if self.zc == 0:
+                bannerText = 'NO ZOMBIES REMAIN'
+                bannerColor = GREEN
+                bannerSize = x, y = self.bannerFont.size(bannerText)
+                self.screen.blit(self.bannerFont.render(bannerText, 1, bannerColor), ((self.width-x)/2, bannerTop))
+                bannerTop += y+5
         pygame.display.flip()
         for mob in self.level.mobs:
             mob.highlight = []
@@ -98,6 +99,29 @@ class Game(object):
             pos = (pos[0]-self.mapPortRect[0], pos[1]-self.mapPortRect[1])
             mapPos = self.level.transformToMapspace(self.mapPort, pos)
             return self.level.tileByPos(mapPos)
+
+    def generateMob(self, mob):
+        w, h = self.level.getSize()
+        loc = Loc(0, 0)
+        m = mob()
+        while not self.level.isClear(loc):
+            loc = Loc(random.randrange(w), random.randrange(h))
+            print loc
+            m.loc = loc
+        self.level.addMob(m)
+
+    def generateMobs(self):
+        for mob in self.level.mobs:
+            mob.effects = []
+            mob.leavesCorpse = None
+            mob.die()
+        logging.debug('generating mobs')
+        s = NUM_SOLDIERS/2+int(random.random()*NUM_SOLDIERS)
+        c = NUM_CIVILIANS/2+int(random.random()*NUM_CIVILIANS)
+        z = NUM_ZOMBIES/2+int(random.random()*NUM_ZOMBIES)
+        mobs = [Soldier] * s + [Civilian] * c + [Zombie] * z
+        for mob in mobs:
+            self.generateMob(mob)
 
     def handleEvents(self):
         for event in pygame.event.get():
@@ -117,6 +141,15 @@ class Game(object):
                     self.done = True
                 elif event.key == pygame.K_d:
                     Game.debugMode = not Game.debugMode
+                elif event.key == pygame.K_m:
+                    self.generateMobs()
+                elif event.key == pygame.K_z:
+                    self.generateMob(Zombie)
+                elif event.key == pygame.K_x:
+                    self.generateMob(Soldier)
+                elif event.key == pygame.K_c:
+                    self.generateMob(Civilian)
+                
             elif event.type == pygame.KEYUP:
                 self.keyState[event.key] = False
             elif event.type == pygame.MOUSEBUTTONDOWN:
@@ -165,13 +198,12 @@ class Game(object):
         elapsed = curTime-self.startTime
         shortCount = curTime-self.frameTime
         if shortCount>=1:
-            #logging.debug("FPS: %f" % (self.framecount/elapsed))
             self.fps = self.framecount/elapsed
             #self.startTime=curTime
             self.frameTime = curTime
         
     def gameOver(self):
-        if (self.fc + self.nc == 0) or (self.zc == 0):
+        if not self.editMode and ((self.fc + self.nc == 0) or (self.zc == 0)):
             self.idlecount += 1
         else:
             self.idlecount = 0
@@ -205,7 +237,6 @@ class Game(object):
         return self.replay
 
     def setup(self):
-        #self.balls = pygame.sprite.RenderPlain([Ball() for i in range(100)])
         self.background = pygame.Surface(self.screen.get_size())
         self.background = self.background.convert()
         self.background.fill(BLACK)
@@ -222,26 +253,6 @@ class Game(object):
             self.level.filename = 'map.p'
             self.level.loadTiles(['tile0.png', 'tile1.png'])
             self.level.loadActors(['blip.png', 'zombie.png', 'soldier.png', 'civilian.png', 'corpse.png'])
-            logging.debug('generating mobs')
-            validMin, validMax = (BLOCKSIZE+ACTORSIZE, self.level.width*BLOCKSIZE-(BLOCKSIZE+ACTORSIZE))
-            validRange = validMax - validMin  
-            s = NUM_SOLDIERS/2+int(random.random()*NUM_SOLDIERS)
-            c = NUM_CIVILIANS/2+int(random.random()*NUM_CIVILIANS)
-            z = NUM_ZOMBIES/2+int(random.random()*NUM_ZOMBIES)
-            mobs = [Soldier] * s + [Civilian] * c + [Zombie] * z
-            w, h = self.level.getSize()
-            for mob in mobs:
-                loc = Loc(0, 0)
-                m = mob()
-                while not self.level.isClear(loc):
-                    loc = Loc(random.randrange(w), random.randrange(w))
-                    print loc
-                    m.loc = loc
-                self.level.addMob(m)
-            #self.level.mobs = pygame.sprite.Group([Civilian(self.level, Loc(random.random()*validRange + validMin, random.random()*validRange + validMin)) for i in range(c)])
-            #self.level.mobs.add([Soldier(self.level, Loc(random.random()*validRange + validMin, random.random()*validRange + validMin)) for i in range(s)])
-            #self.level.mobs.add([Zombie(self.level, Loc(random.random()*validRange + validMin, random.random()*validRange + validMin)) for i in range(z)])
-            #self.level.sortMobs()
             logging.debug('%s %s %s %s' % (len(self.level.mobs), len(self.level.enemies), len(self.level.friendlies), len(self.level.neutrals)))
         self.mapPortRect = self.level.fitTo(self.width, self.height)
         mapSize = mapWidth, mapHeight = self.level.getSize()
