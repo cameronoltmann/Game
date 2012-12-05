@@ -16,12 +16,13 @@ from actor import *
 from constants import *
 from tilemap import *
 
+
 class Game(object):
     resourcePath = 'res/'
     fps = 0
     idlecount = 0
     play = True
-    debugMode = False
+    debugMode = True
     
     def __init__(self, **kwargs):
         pygame.init()
@@ -54,7 +55,7 @@ class Game(object):
         if Game.debugMode:
             self.screen.blit(self.systemFont.render('Debug', 1, RED), (5, 5))
         if self.editMode:
-            self.screen.blit(self.systemFont.render('Edit', 1, RED), (5,20))
+            self.screen.blit(self.systemFont.render('Edit', 0, RED), (5,20))
             cursor_color=RED
         else:
             cursor_color=GREEN
@@ -143,7 +144,7 @@ class Game(object):
                 if mapTile and self.drawing:
                     self.level.setTile(mapTile, self.drawing-100)
                     self.level.renderTile(self.mapPort, mapTile)
-        
+
     def scroll(self):
         xMove = yMove = 0
         if self.keyState.get(pygame.K_LEFT):
@@ -156,11 +157,9 @@ class Game(object):
             yMove += SCROLLSPEED/self.mapViewScale
         if xMove or yMove:
             self.mapViewpoint = self.level.setViewpoint(addCoords(self.mapViewpoint, (xMove, yMove)))
+            self.level.render(self.mapPort)
 
-    def edit(self):
-        self.level.setVisible(self.level.mobs)
-        
-    def timer(self):
+    def loopTimer(self):
         self.framecount += 1
         curTime = time.time()
         elapsed = curTime-self.startTime
@@ -170,7 +169,7 @@ class Game(object):
             self.fps = self.framecount/elapsed
             #self.startTime=curTime
             self.frameTime = curTime
-
+        
     def gameOver(self):
         if (self.fc + self.nc == 0) or (self.zc == 0):
             self.idlecount += 1
@@ -179,27 +178,27 @@ class Game(object):
         if self.idlecount>IDLE_TIME:
             return True
         return False
-    
+        
     def gameLoop(self):
         self.replay = False
         while not self.done:
             self.clock.tick(60)
             self.handleEvents()
             self.scroll()
-            self.level.render(self.mapPort)
-            if self.editMode:
-                self.edit()
-            else:
+            if not self.editMode:
                 self.level.mobs.update()
                 #self.level.setVisible(self.level.getVisibleMobs(self.level.friendlies))
+                self.level.setVisible(self.level.mobs)
+            else:
                 self.level.setVisible(self.level.mobs)
             self.fc = len(self.level.friendlies)
             self.nc = len(self.level.neutrals)
             self.zc = len(self.level.enemies)
             self.render()
-            self.timer()
+            self.loopTimer()
             if self.gameOver():
-                self.replay = self.done = True
+                self.replay = True
+                self.done = True
                 
         # Exit game
         self.quit()
@@ -218,25 +217,31 @@ class Game(object):
             logging.debug(self.level)
         except IOError:
             logging.debug('Generating map')
-            #self.level = Map((10+random.randrange(30), 10+random.randrange(30)))
             self.level = Map((20, 20))
             self.level.game = self
-            logging.debug('Map size: %s x %s' % (self.level.width, self.level.height))
             self.level.filename = 'map.p'
             self.level.loadTiles(['tile0.png', 'tile1.png'])
             self.level.loadActors(['blip.png', 'zombie.png', 'soldier.png', 'civilian.png', 'corpse.png'])
             logging.debug('generating mobs')
-            validMinX, validMaxX = (BLOCKSIZE+ACTORSIZE, self.level.width*BLOCKSIZE-(BLOCKSIZE+ACTORSIZE))
-            validRangeX = validMaxX - validMinX  
-            validMinY, validMaxY = (BLOCKSIZE+ACTORSIZE, self.level.height*BLOCKSIZE-(BLOCKSIZE+ACTORSIZE))
-            validRangeY = validMaxY - validMinY  
+            validMin, validMax = (BLOCKSIZE+ACTORSIZE, self.level.width*BLOCKSIZE-(BLOCKSIZE+ACTORSIZE))
+            validRange = validMax - validMin  
             s = NUM_SOLDIERS/2+int(random.random()*NUM_SOLDIERS)
             c = NUM_CIVILIANS/2+int(random.random()*NUM_CIVILIANS)
             z = NUM_ZOMBIES/2+int(random.random()*NUM_ZOMBIES)
-            self.level.mobs = pygame.sprite.Group([Civilian(self.level, Loc(random.random()*validRangeX + validMinX, random.random()*validRangeY + validMinY)) for i in range(c)])
-            self.level.mobs.add([Soldier(self.level, Loc(random.random()*validRangeX + validMinX, random.random()*validRangeY + validMinY)) for i in range(s)])
-            self.level.mobs.add([Zombie(self.level, Loc(random.random()*validRangeX + validMinX, random.random()*validRangeY + validMinY)) for i in range(z)])
-            self.level.sortMobs()
+            mobs = [Soldier] * s + [Civilian] * c + [Zombie] * z
+            w, h = self.level.getSize()
+            for mob in mobs:
+                loc = Loc(0, 0)
+                m = mob()
+                while not self.level.isClear(loc):
+                    loc = Loc(random.randrange(w), random.randrange(w))
+                    print loc
+                    m.loc = loc
+                self.level.addMob(m)
+            #self.level.mobs = pygame.sprite.Group([Civilian(self.level, Loc(random.random()*validRange + validMin, random.random()*validRange + validMin)) for i in range(c)])
+            #self.level.mobs.add([Soldier(self.level, Loc(random.random()*validRange + validMin, random.random()*validRange + validMin)) for i in range(s)])
+            #self.level.mobs.add([Zombie(self.level, Loc(random.random()*validRange + validMin, random.random()*validRange + validMin)) for i in range(z)])
+            #self.level.sortMobs()
             logging.debug('%s %s %s %s' % (len(self.level.mobs), len(self.level.enemies), len(self.level.friendlies), len(self.level.neutrals)))
         self.mapPortRect = self.level.fitTo(self.width, self.height)
         mapSize = mapWidth, mapHeight = self.level.getSize()
@@ -250,7 +255,7 @@ class Game(object):
         self.level.render(self.mapPort)
         self.framecount=0
         self.startTime=self.frameTime=time.time()
-        self.editMode = False
+        self.editMode = True
         self.systemFont = pygame.font.SysFont("None", 16)
         self.drawing = False
         self.done = False

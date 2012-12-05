@@ -54,14 +54,23 @@ class Map(object):
         self.actorsRaw = [pygame.image.load(Map.resourcePath+actor) for actor in self.actorNames]
         self.actors = [pygame.transform.scale(actor, (ACTORSIZE, ACTORSIZE)) for actor in self.actorsRaw]
         self.setActorSize(self.actorSize)
-        
+
+    def isClear(self, loc):
+        if isinstance(loc, Loc):
+            x, y = loc.loc
+        else:
+            x, y = loc
+        if BLOCKSIZE+ACTORSIZE<x<self.width*BLOCKSIZE-(ACTORSIZE+BLOCKSIZE)\
+            and BLOCKSIZE+ACTORSIZE<y<self.height*BLOCKSIZE-(ACTORSIZE+BLOCKSIZE):
+                return self.getTile(self.tileByPos((x, y)))==TILE_OPEN
+
     def canMoveTo(self, actor, loc):
         if isinstance(loc, Loc):
             x, y = loc.loc
         else:
             x, y = loc
-        if ACTORSIZE<x<self.width*BLOCKSIZE-ACTORSIZE\
-            and ACTORSIZE<y<self.height*BLOCKSIZE-ACTORSIZE\
+        if BLOCKSIZE+ACTORSIZE<x<self.width*BLOCKSIZE-(ACTORSIZE+BLOCKSIZE)\
+            and BLOCKSIZE+ACTORSIZE<y<self.height*BLOCKSIZE-(ACTORSIZE+BLOCKSIZE)\
             and actor.canTraverse((x,y)):
                 return True
         return False
@@ -162,6 +171,7 @@ class Map(object):
         return (mapXPos, mapYPos)
     
     def addMob(self, mob):
+        mob.level = self
         self.mobs.add(mob)
         if mob.__class__.__name__ == 'Soldier':
             self.friendlies.add(mob)
