@@ -97,97 +97,113 @@ class Game(object):
             pos = (pos[0]-self.mapPortRect[0], pos[1]-self.mapPortRect[1])
             mapPos = self.level.transformToMapspace(self.mapPort, pos)
             return self.level.tileByPos(mapPos)
-        
-    def gameLoop(self):
-        replay = False
-        while not self.done:
-            self.clock.tick(60)
-            for event in pygame.event.get():
-                if event.type in (pygame.MOUSEBUTTONDOWN, pygame.MOUSEBUTTONUP, pygame.MOUSEMOTION):
-                    self.mouseState['pos'] = event.pos
-                    mapTile = self.mapTileByPos(event.pos)
-                if event.type == pygame.QUIT:
+
+    def handleEvents(self):
+        for event in pygame.event.get():
+            if event.type in (pygame.MOUSEBUTTONDOWN, pygame.MOUSEBUTTONUP, pygame.MOUSEMOTION):
+                self.mouseState['pos'] = event.pos
+                mapTile = self.mapTileByPos(event.pos)
+            if event.type == pygame.QUIT:
+                self.done = True
+            elif event.type == pygame.KEYDOWN:
+                self.keyState[event.key]=True
+                if event.key == pygame.K_BACKQUOTE:
+                    self.editMode = not self.editMode
+                elif event.key == pygame.K_ESCAPE:
                     self.done = True
-                elif event.type == pygame.KEYDOWN:
-                    self.keyState[event.key]=True
-                    if event.key == pygame.K_BACKQUOTE:
-                        self.editMode = not self.editMode
-                    elif event.key == pygame.K_ESCAPE:
-                        self.done = True
-                    elif event.key == pygame.K_r:
-                        replay = True
-                        self.done = True
-                    elif event.key == pygame.K_d:
-                        Game.debugMode = not Game.debugMode
-                elif event.type == pygame.KEYUP:
-                    self.keyState[event.key] = False
-                elif event.type == pygame.MOUSEBUTTONDOWN:
-                    self.mouseState[event.button] = True
-                    if self.mapPortRect.collidepoint(event.pos):
-                        if event.button == 4: # wheel up
-                            self.mapViewScale = self.level.setScale(self.mapViewScale*ZOOMFACTOR)
-                            self.level.render(self.mapPort)
-                        elif event.button == 5: # wheel down
-                            self.mapViewScale = self.level.setScale(self.mapViewScale/ZOOMFACTOR)
-                            self.level.render(self.mapPort)
-                    if mapTile:
-                        if self.editMode and event.button==1:
-                            if self.level.getTile(mapTile) == TILE_OPEN:
-                                self.drawing = TILE_WALL+100
-                            else:
-                                self.drawing = TILE_OPEN+100
-                            self.level.setTile(mapTile, self.drawing-100)
-                            self.level.renderTile(self.mapPort, mapTile)
-                elif event.type == pygame.MOUSEBUTTONUP:
-                    self.mouseState[event.button] = False
-                    if mapTile and event.button==1:
-                        self.drawing = False
-                elif event.type == pygame.MOUSEMOTION:
-                    if mapTile and self.drawing:
+                elif event.key == pygame.K_r:
+                    self.replay = True
+                    self.done = True
+                elif event.key == pygame.K_d:
+                    Game.debugMode = not Game.debugMode
+            elif event.type == pygame.KEYUP:
+                self.keyState[event.key] = False
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                self.mouseState[event.button] = True
+                if self.mapPortRect.collidepoint(event.pos):
+                    if event.button == 4: # wheel up
+                        self.mapViewScale = self.level.setScale(self.mapViewScale*ZOOMFACTOR)
+                        self.level.render(self.mapPort)
+                    elif event.button == 5: # wheel down
+                        self.mapViewScale = self.level.setScale(self.mapViewScale/ZOOMFACTOR)
+                        self.level.render(self.mapPort)
+                if mapTile:
+                    if self.editMode and event.button==1:
+                        if self.level.getTile(mapTile) == TILE_OPEN:
+                            self.drawing = TILE_WALL+100
+                        else:
+                            self.drawing = TILE_OPEN+100
                         self.level.setTile(mapTile, self.drawing-100)
                         self.level.renderTile(self.mapPort, mapTile)
-            xMove = yMove = 0
-            if self.keyState.get(pygame.K_LEFT):
-                xMove -= SCROLLSPEED/self.mapViewScale
-            if self.keyState.get(pygame.K_UP):
-                yMove -= SCROLLSPEED/self.mapViewScale
-            if self.keyState.get(pygame.K_RIGHT):
-                xMove += SCROLLSPEED/self.mapViewScale
-            if self.keyState.get(pygame.K_DOWN):
-                yMove += SCROLLSPEED/self.mapViewScale
-            if xMove or yMove:
-                self.mapViewpoint = self.level.setViewpoint(addCoords(self.mapViewpoint, (xMove, yMove)))
-                self.level.render(self.mapPort)
-            if not self.editMode:
+            elif event.type == pygame.MOUSEBUTTONUP:
+                self.mouseState[event.button] = False
+                if mapTile and event.button==1:
+                    self.drawing = False
+            elif event.type == pygame.MOUSEMOTION:
+                if mapTile and self.drawing:
+                    self.level.setTile(mapTile, self.drawing-100)
+                    self.level.renderTile(self.mapPort, mapTile)
+        
+    def scroll(self):
+        xMove = yMove = 0
+        if self.keyState.get(pygame.K_LEFT):
+            xMove -= SCROLLSPEED/self.mapViewScale
+        if self.keyState.get(pygame.K_UP):
+            yMove -= SCROLLSPEED/self.mapViewScale
+        if self.keyState.get(pygame.K_RIGHT):
+            xMove += SCROLLSPEED/self.mapViewScale
+        if self.keyState.get(pygame.K_DOWN):
+            yMove += SCROLLSPEED/self.mapViewScale
+        if xMove or yMove:
+            self.mapViewpoint = self.level.setViewpoint(addCoords(self.mapViewpoint, (xMove, yMove)))
+
+    def edit(self):
+        self.level.setVisible(self.level.mobs)
+        
+    def timer(self):
+        self.framecount += 1
+        curTime = time.time()
+        elapsed = curTime-self.startTime
+        shortCount = curTime-self.frameTime
+        if shortCount>=1:
+            #logging.debug("FPS: %f" % (self.framecount/elapsed))
+            self.fps = self.framecount/elapsed
+            #self.startTime=curTime
+            self.frameTime = curTime
+
+    def gameOver(self):
+        if (self.fc + self.nc == 0) or (self.zc == 0):
+            self.idlecount += 1
+        else:
+            self.idlecount = 0
+        if self.idlecount>IDLE_TIME:
+            return True
+        return False
+    
+    def gameLoop(self):
+        self.replay = False
+        while not self.done:
+            self.clock.tick(60)
+            self.handleEvents()
+            self.scroll()
+            self.level.render(self.mapPort)
+            if self.editMode:
+                self.edit()
+            else:
                 self.level.mobs.update()
                 #self.level.setVisible(self.level.getVisibleMobs(self.level.friendlies))
-                self.level.setVisible(self.level.mobs)
-            else:
                 self.level.setVisible(self.level.mobs)
             self.fc = len(self.level.friendlies)
             self.nc = len(self.level.neutrals)
             self.zc = len(self.level.enemies)
             self.render()
-            self.framecount += 1
-            curTime = time.time()
-            elapsed = curTime-self.startTime
-            shortCount = curTime-self.frameTime
-            if shortCount>=1:
-                #logging.debug("FPS: %f" % (self.framecount/elapsed))
-                self.fps = self.framecount/elapsed
-                #self.startTime=curTime
-                self.frameTime = curTime
-            if (self.fc + self.nc == 0) or (self.zc == 0):
-                self.idlecount += 1
-            else:
-                self.idlecount = 0
-            if self.idlecount>IDLE_TIME:
-                replay = True
-                self.done = True
+            self.timer()
+            if self.gameOver():
+                self.replay = self.done = True
                 
         # Exit game
         self.quit()
-        return replay
+        return self.replay
 
     def setup(self):
         #self.balls = pygame.sprite.RenderPlain([Ball() for i in range(100)])
@@ -202,7 +218,8 @@ class Game(object):
             logging.debug(self.level)
         except IOError:
             logging.debug('Generating map')
-            self.level = Map((10+random.randrange(30), 10+random.randrange(30)))
+            #self.level = Map((10+random.randrange(30), 10+random.randrange(30)))
+            self.level = Map((20, 20))
             self.level.game = self
             logging.debug('Map size: %s x %s' % (self.level.width, self.level.height))
             self.level.filename = 'map.p'

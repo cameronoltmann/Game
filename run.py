@@ -11,6 +11,7 @@ file_root = os.getcwd()
 
 if __name__ == '__main__':
     initVals = {
+                #'size': (1920, 1080),
                 #'size': (1024, 768),
                 #'size': (640, 480),
                 'mode': pygame.FULLSCREEN,
