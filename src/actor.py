@@ -116,7 +116,7 @@ class StrategyAttackNearestZombie(Strategy):
     def think(cls, actor):
         for weapon in actor.weapons:
             if weapon.ready():
-                visibleMobs = actor.level.getVisibleMobs([actor])
+                visibleMobs = actor.level.getVisibleMobs([actor], actor.level.enemies.sprites())
                 zombieDistance = 1e+10
                 nearestZombie = None
                 for mob in visibleMobs:
@@ -186,9 +186,16 @@ class StrategyCivilian(Strategy):
         if not actor.fleeing:
             StrategyRandom.think(actor)
 
+class StrategyMoveToTarget(Strategy):
+    @classmethod
+    def think(cls, actor):
+        if actor.targetLoc:
+            actor.addImpulse(actor.targetLoc-actor.loc)
+    
 class StrategySoldier(Strategy):
     @classmethod
     def think(cls, actor):
+        StrategyMoveToTarget.think(actor)
         StrategyAttackNearestZombie.think(actor)
         StrategyHuddle.think(actor)
         StrategyFlee.think(actor)
@@ -245,7 +252,7 @@ class Actor(pygame.sprite.DirtySprite):
     maxSpeed = BASE_SPEED
     # behaviour
     consistency = 0.99
-    strategy = StrategyRandom
+    strategy = None
     target = None
     fear = None
     health = 10
@@ -255,6 +262,7 @@ class Actor(pygame.sprite.DirtySprite):
     delay = 60
     startingWeapons = None
     target = None
+    targetLoc = None
     targetDistance = 1e+15
     thinkInterval = 10
     thinkCount = 0
@@ -389,6 +397,8 @@ class Actor(pygame.sprite.DirtySprite):
                 self.addHighlight(WHITE, self.riled*ACTORSIZE*.25/MAX_RILED, 0)
         
     def canTraverse(self, loc):
+        if isinstance(self, Beacon):
+            return True
         if self.level.getTile(self.level.tileByPos(loc)) == TILE_WALL:
             return False
         return True
@@ -429,5 +439,9 @@ class Corpse(Actor):
     appearance = CORPSE
     maxSpeed = 0
     killable = False
-    strategy = None
+    leavesCorpse = None
+    
+class Beacon(Actor):
+    maxSpeed = 0
+    killable = False
     leavesCorpse = None

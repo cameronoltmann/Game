@@ -69,9 +69,13 @@ class Map(object):
             x, y = loc.loc
         else:
             x, y = loc
+        '''
         if BLOCKSIZE+ACTORSIZE<x<self.width*BLOCKSIZE-(ACTORSIZE+BLOCKSIZE)\
             and BLOCKSIZE+ACTORSIZE<y<self.height*BLOCKSIZE-(ACTORSIZE+BLOCKSIZE)\
             and actor.canTraverse((x,y)):
+                return True
+        '''
+        if actor.canTraverse((x,y)):
                 return True
         return False
 

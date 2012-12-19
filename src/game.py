@@ -23,6 +23,7 @@ class Game(object):
     idlecount = 0
     play = True
     debugMode = True
+    beacon = None
     
     def __init__(self, **kwargs):
         pygame.init()
@@ -57,9 +58,9 @@ class Game(object):
         if self.editMode:
             self.screen.blit(self.systemFont.render('Edit', 0, RED), (5,20))
             cursor_color=RED
-        else:
-            cursor_color=GREEN
-        if mapTile:
+        #else:
+        #    cursor_color=GREEN
+        if mapTile and self.editMode:
             tileULC = scaleCoords(mapTile, BLOCKSIZE)
             screenULC = self.level.transformToScreenspace(self.mapPort, tileULC)
             tile_rect = pygame.rect.Rect(screenULC[0],
@@ -91,13 +92,26 @@ class Game(object):
         for mob in self.level.mobs:
             mob.highlight = []
 
-    def mapTileByPos(self, pos):
+    def mapLocByPos(self, pos):
         '''
-        Return map tile corresponding to screen coordinates
+        Return map coordinates of screen coordinates
         '''
         if self.mapPortRect.collidepoint(pos):
             pos = (pos[0]-self.mapPortRect[0], pos[1]-self.mapPortRect[1])
             mapPos = self.level.transformToMapspace(self.mapPort, pos)
+            return mapPos
+        
+    def mapTileByPos(self, pos):
+        '''
+        Return map tile corresponding to screen coordinates
+        '''
+        '''
+        if self.mapPortRect.collidepoint(pos):
+            pos = (pos[0]-self.mapPortRect[0], pos[1]-self.mapPortRect[1])
+            mapPos = self.level.transformToMapspace(self.mapPort, pos)
+        '''
+        mapPos = self.mapLocByPos(pos)
+        if mapPos:
             return self.level.tileByPos(mapPos)
 
     def generateMob(self, mob):
@@ -108,6 +122,8 @@ class Game(object):
             loc = Loc(random.randrange(w), random.randrange(h))
             print loc
             m.loc = loc
+        if self.beacon:
+            m.targetLoc = self.beacon.loc
         self.level.addMob(m)
 
     def generateMobs(self):
@@ -115,6 +131,7 @@ class Game(object):
             mob.effects = []
             mob.leavesCorpse = None
             mob.die()
+        self.beacon = None
         logging.debug('generating mobs')
         s = NUM_SOLDIERS/2+int(random.random()*NUM_SOLDIERS)
         c = NUM_CIVILIANS/2+int(random.random()*NUM_CIVILIANS)
@@ -162,13 +179,30 @@ class Game(object):
                         self.mapViewScale = self.level.setScale(self.mapViewScale/ZOOMFACTOR)
                         self.level.render(self.mapPort)
                 if mapTile:
-                    if self.editMode and event.button==1:
-                        if self.level.getTile(mapTile) == TILE_OPEN:
-                            self.drawing = TILE_WALL+100
-                        else:
-                            self.drawing = TILE_OPEN+100
-                        self.level.setTile(mapTile, self.drawing-100)
-                        self.level.renderTile(self.mapPort, mapTile)
+                    if self.editMode:
+                        if event.button==1:
+                            if self.level.getTile(mapTile) == TILE_OPEN:
+                                self.drawing = TILE_WALL+100
+                            else:
+                                self.drawing = TILE_OPEN+100
+                            self.level.setTile(mapTile, self.drawing-100)
+                            self.level.renderTile(self.mapPort, mapTile)
+                    else:
+                        if event.button==1:
+                            l = x, y = self.mapLocByPos(event.pos)
+                            targetLoc = Loc(x, y)
+                            if self.beacon:
+                                self.beacon.moveTo(targetLoc)
+                            else:
+                                self.beacon = Beacon(self.level, targetLoc)
+                            for s in self.level.friendlies:
+                                s.targetLoc = self.beacon.loc
+                        elif event.button==3:
+                            if self.beacon:
+                                for s in self.level.friendlies:
+                                    s.targetLoc = None
+                                self.beacon.die()
+                                self.beacon = None
             elif event.type == pygame.MOUSEBUTTONUP:
                 self.mouseState[event.button] = False
                 if mapTile and event.button==1:
