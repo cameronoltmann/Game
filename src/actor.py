@@ -181,7 +181,7 @@ class StrategyAvoidWalls(Strategy):
             impulse = impulse.addVector(math.pi*.5, (y % BLOCKSIZE) * WALL_PHOBIA)
         if not actor.canTraverse((x-BLOCKSIZE, y)):
             impulse = impulse.addVector(0, (BLOCKSIZE - x % BLOCKSIZE) * WALL_PHOBIA)
-        actor.addImpulse
+        actor.addImpulse(impulse)
 
 class StrategyCivilian(Strategy):
     @classmethod
