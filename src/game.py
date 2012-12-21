@@ -15,7 +15,7 @@ from util import *
 from actor import *
 from constants import *
 from tilemap import *
-
+from pathfinder import *
 
 class Game(object):
     resourcePath = 'res/'
@@ -24,6 +24,7 @@ class Game(object):
     play = True
     debugMode = True
     beacon = None
+    path = None
     
     def __init__(self, **kwargs):
         pygame.init()
@@ -151,6 +152,9 @@ class Game(object):
                 self.keyState[event.key]=True
                 if event.key == pygame.K_BACKQUOTE:
                     self.editMode = not self.editMode
+                    if not self.editMode:
+                        if self.beacon:
+                            self.path.generatePaths()
                 elif event.key == pygame.K_ESCAPE:
                     self.done = True
                 elif event.key == pygame.K_r:
@@ -197,6 +201,8 @@ class Game(object):
                                 self.beacon = Beacon(self.level, targetLoc)
                             for s in self.level.friendlies:
                                 s.targetLoc = self.beacon.loc
+                            self.path.setTarget(self.level.tileByPos(targetLoc.loc))
+                            self.path.generatePaths()
                         elif event.button==3:
                             if self.beacon:
                                 for s in self.level.friendlies:
@@ -288,6 +294,8 @@ class Game(object):
             self.level.loadTiles(['tile0.png', 'tile1.png'])
             self.level.loadActors(['blip.png', 'zombie.png', 'soldier.png', 'civilian.png', 'corpse.png'])
             logging.debug('%s %s %s %s' % (len(self.level.mobs), len(self.level.enemies), len(self.level.friendlies), len(self.level.neutrals)))
+        # generate DP movement map
+        self.path = PathFinder(self.level)
         self.mapPortRect = self.level.fitTo(self.width, self.height)
         mapSize = mapWidth, mapHeight = self.level.getSize()
         self.mapViewScale = (1.0*self.mapPortRect[2]/mapWidth)

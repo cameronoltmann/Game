@@ -166,6 +166,12 @@ class StrategyFlee(Strategy):
             if distance<actor.senseRadius/actor.bravery:
                 impulse = impulse.addVector(actor.loc.directionTo(mob.loc)+math.pi, actor.senseRadius/actor.bravery/max(actor.loc.distanceTo(mob.loc)/2, 1))
             actor.fleeing = True
+        actor.addImpulse(impulse)
+
+class StrategyAvoidWalls(Strategy):
+    @classmethod
+    def think(cls, actor):
+        impulse = Loc(0, 0)
         x, y = actor.loc.loc
         if not actor.canTraverse((x, y-BLOCKSIZE)):
             impulse = impulse.addVector(math.pi*1.5, (BLOCKSIZE - y % BLOCKSIZE) * WALL_PHOBIA)
@@ -175,7 +181,7 @@ class StrategyFlee(Strategy):
             impulse = impulse.addVector(math.pi*.5, (y % BLOCKSIZE) * WALL_PHOBIA)
         if not actor.canTraverse((x-BLOCKSIZE, y)):
             impulse = impulse.addVector(0, (BLOCKSIZE - x % BLOCKSIZE) * WALL_PHOBIA)
-        actor.addImpulse(impulse)
+        actor.addImpulse
 
 class StrategyCivilian(Strategy):
     @classmethod
@@ -183,6 +189,7 @@ class StrategyCivilian(Strategy):
         StrategyAttackNearestZombie.think(actor)
         StrategyHuddle.think(actor)
         StrategyFlee.think(actor)
+        StrategyAvoidWalls.think(actor)
         if not actor.fleeing:
             StrategyRandom.think(actor)
 
@@ -190,7 +197,15 @@ class StrategyMoveToTarget(Strategy):
     @classmethod
     def think(cls, actor):
         if actor.targetLoc:
-            actor.addImpulse(actor.targetLoc-actor.loc)
+            #actor.addImpulse(actor.targetLoc-actor.loc)
+            path = actor.level.game.path
+            target = path.nextPoint(actor.loc.loc)
+            if target:
+                x, y = target
+                target = Loc(x, y)
+            else:
+                target = actor.targetLoc
+            actor.addImpulse(target-actor.loc)
     
 class StrategySoldier(Strategy):
     @classmethod
@@ -199,6 +214,8 @@ class StrategySoldier(Strategy):
         StrategyAttackNearestZombie.think(actor)
         StrategyHuddle.think(actor)
         StrategyFlee.think(actor)
+        if actor.fleeing or (not actor.targetLoc):
+            StrategyAvoidWalls.think(actor)
 
 class StrategyZombie(Strategy):
     @classmethod
