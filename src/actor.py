@@ -116,7 +116,7 @@ class StrategyAttackNearestZombie(Strategy):
     def think(cls, actor):
         for weapon in actor.weapons:
             if weapon.ready():
-                visibleMobs = actor.level.getVisibleMobs([actor], actor.level.enemies.sprites())
+                visibleMobs = actor.level.getVisibleMobs([actor], actor.level.enemies.sprites(), True)
                 zombieDistance = 1e+10
                 nearestZombie = None
                 for mob in visibleMobs:
@@ -140,7 +140,7 @@ class StrategyHuddle(Strategy):
             return
         friendlies = list(set(friendlies) - set((actor,)))
         crowdFactor = math.sqrt(len(friendlies)) * actor.senseRadius
-        impulse = Loc(0, 0)
+        impulse = Loc()
         for mob in friendlies:
             distance = actor.loc.distanceTo(mob.loc)
             direction = actor.loc.directionTo(mob.loc)
@@ -159,29 +159,45 @@ class StrategyFlee(Strategy):
             enemies = actor.level.getVisibleMobs([actor], actor.level.friendlies.sprites() + actor.level.neutrals.sprites())
         else:
             return
-        impulse = Loc(0, 0)
+        impulse = Loc()
         actor.fleeing = False
         for mob in enemies:
             distance = actor.loc.distanceTo(mob.loc)
             if distance<actor.senseRadius/actor.bravery:
                 impulse = impulse.addVector(actor.loc.directionTo(mob.loc)+math.pi, actor.senseRadius/actor.bravery/max(actor.loc.distanceTo(mob.loc)/2, 1))
-            actor.fleeing = True
+                actor.fleeing = True
         actor.addImpulse(impulse)
 
 class StrategyAvoidWalls(Strategy):
     @classmethod
     def think(cls, actor):
-        impulse = Loc(0, 0)
+        impulse = Loc()
         x, y = actor.loc.loc
+        xi = x % BLOCKSIZE
+        yi = y % BLOCKSIZE
+        bs = BLOCKSIZE
+        if not actor.canTraverse((x-BLOCKSIZE, y-BLOCKSIZE)):
+            impulse = impulse.addVector(math.pi*1.5, (bs-yi) * WALL_PHOBIA/2)
+            impulse = impulse.addVector(math.pi*0, (bs-xi) * WALL_PHOBIA/2)
         if not actor.canTraverse((x, y-BLOCKSIZE)):
-            impulse = impulse.addVector(math.pi*1.5, (BLOCKSIZE - y % BLOCKSIZE) * WALL_PHOBIA)
+            impulse = impulse.addVector(math.pi*1.5, (bs-yi) * WALL_PHOBIA)
+        if not actor.canTraverse((x+BLOCKSIZE, y-BLOCKSIZE)):
+            impulse = impulse.addVector(math.pi*1.5, (bs-yi) * WALL_PHOBIA/2)
+            impulse = impulse.addVector(math.pi*1, xi * WALL_PHOBIA/2)
         if not actor.canTraverse((x+BLOCKSIZE, y)):
-            impulse = impulse.addVector(math.pi*1, (x % BLOCKSIZE)* WALL_PHOBIA)
+            impulse = impulse.addVector(math.pi*1, xi * WALL_PHOBIA)
+        if not actor.canTraverse((x-BLOCKSIZE, y+BLOCKSIZE)):
+            impulse = impulse.addVector(math.pi*.5, yi * WALL_PHOBIA/2)
+            impulse = impulse.addVector(math.pi*0, (bs-xi) * WALL_PHOBIA/2)
         if not actor.canTraverse((x, y+BLOCKSIZE)):
-            impulse = impulse.addVector(math.pi*.5, (y % BLOCKSIZE) * WALL_PHOBIA)
+            impulse = impulse.addVector(math.pi*.5, yi * WALL_PHOBIA)
+        if not actor.canTraverse((x+BLOCKSIZE, y+BLOCKSIZE)):
+            impulse = impulse.addVector(math.pi*1, xi * WALL_PHOBIA/2)
+            impulse = impulse.addVector(math.pi*.5, yi * WALL_PHOBIA/2)
         if not actor.canTraverse((x-BLOCKSIZE, y)):
-            impulse = impulse.addVector(0, (BLOCKSIZE - x % BLOCKSIZE) * WALL_PHOBIA)
-        actor.addImpulse(impulse)
+            impulse = impulse.addVector(math.pi*0, (bs-xi) * WALL_PHOBIA)
+        if impulse != Loc():
+            actor.addImpulse(impulse)
 
 class StrategyCivilian(Strategy):
     @classmethod
@@ -197,15 +213,16 @@ class StrategyMoveToTarget(Strategy):
     @classmethod
     def think(cls, actor):
         if actor.targetLoc:
-            #actor.addImpulse(actor.targetLoc-actor.loc)
             path = actor.level.game.path
             target = path.nextPoint(actor.loc.loc)
             if target:
                 x, y = target
-                target = Loc(x, y)
+                target = Loc((x, y))
             else:
                 target = actor.targetLoc
-            actor.addImpulse(target-actor.loc)
+            impulse = target-actor.loc
+            impulse = impulse * actor.obedience / actor.loc.distanceTo(target) # Normalize impulse
+            actor.addImpulse(impulse)
     
 class StrategySoldier(Strategy):
     @classmethod
@@ -214,8 +231,7 @@ class StrategySoldier(Strategy):
         StrategyAttackNearestZombie.think(actor)
         StrategyHuddle.think(actor)
         StrategyFlee.think(actor)
-        if actor.fleeing or (not actor.targetLoc):
-            StrategyAvoidWalls.think(actor)
+        StrategyAvoidWalls.think(actor)
 
 class StrategyZombie(Strategy):
     @classmethod
@@ -228,7 +244,7 @@ class StrategyZombie(Strategy):
                 actor.setTarget(mob)
             visibleTargets += 1
         visibleZombies = actor.level.getVisibleMobs([actor], actor.level.enemies)
-        impulse = Loc(0, 0)
+        impulse = Loc()
         if visibleTargets:
             actor.rile()
         else:
@@ -288,6 +304,7 @@ class Actor(pygame.sprite.DirtySprite):
     riled = 0
     fleeing = False
     bravery = 1.0
+    obedience = 1.0
     leavesCorpse = 'Corpse'
     
     def __init__(self, level = None, loc = None):
@@ -445,6 +462,7 @@ class Soldier(Actor):
     strategy = StrategySoldier
     startingWeapons = [Rifle, Punch]
     bravery = 2.5
+    obedience = 2.5
 
 class Civilian(Actor):
     appearance = CIVILIAN

@@ -32,8 +32,8 @@ class Map(object):
         self.enemies = pygame.sprite.Group()
         self.other = pygame.sprite.Group()
         self.visible = pygame.sprite.Group()
-        self.mobOffset = Loc(0, 0)
-        self.mobSize = Loc(0, 0)
+        self.mobOffset = Loc()
+        self.mobSize = Loc()
         self.scale = 1.0
         self.maxScale = 2.0
         self.minScale = 0.05
@@ -96,7 +96,7 @@ class Map(object):
 
     def setActorSize(self, size):
         self.actorSize = size
-        self.mobSize = Loc(self.actorSize, self.actorSize)
+        self.mobSize = Loc((self.actorSize, self.actorSize))
         self.mobOffset = -self.mobSize/2.0
         logging.debug('mobSize: %s' % self.mobSize)
         if self.actors:
@@ -119,8 +119,69 @@ class Map(object):
 
     def isInRange(self, viewer, target, range):
         return viewer.loc.distanceTo(target.loc)<=range
+    
+    def blocksVision(self, tile):
+        return True if (tile == TILE_WALL) else False
 
-    def getVisibleMobs(self, viewers = None, mobs = None):
+    def losGridCellsStrict(self, viewerLoc, targetLoc):
+        x0, y0 = viewerLoc
+        x1, y1 = targetLoc
+        dx = abs(x1 - x0)
+        dy = abs(y1 - y0)
+        ix = 1 if x0 < x1 else -1
+        iy = 1 if y0 < y1 else -1
+        e = 0
+        for i in range(dx+dy):
+            yield (x0, y0)
+            e1 = e + dy
+            e2 = e - dx
+            if abs(e1)<abs(e2):
+                x0 += ix
+                e = e1
+            else:
+                y0 += iy
+                e = e2
+    
+    def losGridCells(self, viewerLoc, targetLoc):
+        x0, y0 = viewerLoc
+        x1, y1 = targetLoc
+        dx = abs(x1 - x0)
+        dy = abs(y1 - y0)
+        ix = 1 if x0 < x1 else -1
+        iy = 1 if y0 < y1 else -1
+        e = 0
+        for i in range(dx+dy):
+            yield (x0, y0)
+            e1 = e + dy
+            e2 = e - dx
+            e3 = e + dy - dx
+            m = min((abs(e1), abs(e2), abs(e3)))
+            if m == abs(e1):
+                x0 += ix
+                e = e1
+            elif m == abs(e2):
+                y0 += iy
+                e = e2
+            else:
+                x0 += ix
+                y0 += iy
+                e = e3     
+
+    def isVisible(self, viewer, target, strict = False):
+        if strict:
+            losFunc = self.losGridCellsStrict
+        else:
+            losFunc = self.losGridCells
+        x1, y1 = viewer.loc.loc
+        l1 = int(x1)/BLOCKSIZE, int(y1)/BLOCKSIZE
+        x2, y2 = target.loc.loc
+        l2 = int(x2)/BLOCKSIZE, int(y2)/BLOCKSIZE
+        for cell in losFunc(l1, l2):
+            if self.blocksVision(self.getTile(cell)):
+                return False
+        return True
+
+    def getVisibleMobs(self, viewers = None, mobs = None, strict = False):
         visible = []
         if viewers == None:
             viewers = self.friendlies
@@ -129,7 +190,8 @@ class Map(object):
         for v in viewers:
             for m in mobs:
                 if math.hypot(v.loc.x-m.loc.x, v.loc.y-m.loc.y)<=v.senseRadius:
-                    visible.append(m)
+                    if self.isVisible(v, m, strict):
+                        visible.append(m)
         return visible
 
     def setVisible(self, visible):
@@ -266,7 +328,7 @@ class Map(object):
         return self.grid[y*self.width+x]
     
     @classmethod
-    def load(cls, filename):
+    def load(cls, filename, game):
         data = pickle.load(open(Map.resourcePath+filename, 'rb'))
         m = Map()
         for name, value in data.iteritems():
@@ -274,13 +336,14 @@ class Map(object):
         m.setSize(m.size)
         m.grid = data['grid']
         m.filename = filename
+        m.game = game
         m.loadTiles(m.tileNames)
         m.loadActors(m.actorNames)
         for mob in m.mobs:
             mob.level = m
         return m
         
-    def save(self, filename=None):
+    def save(self, saveMobs=False, filename=None):
         t0 = time.time()
         if filename:
             self.filename = filename
@@ -294,6 +357,10 @@ class Map(object):
         del data['game']
         for mob in self.mobs:
             mob.image = None
+        if not saveMobs:
+            self.mobs = pygame.sprite.Group()
+            del data['other']
+            self.sortMobs()
         pickle.dump(data, open(Map.resourcePath+self.filename, 'wb'))
         t1 = time.time()
         logging.debug('Level saved in %f seconds' % (t1-t0))

@@ -48,28 +48,28 @@ class Loc():
     basic two-dimensional coordinate class
     - overload addition/subtraction, and multiplication/division(scaling)
     '''
-    def __init__(self, x=0, y=0):
-        self.loc = self.x, self.y = x, y
+    def __init__(self, loc = (0, 0)):
+        self.loc = self.x, self.y = loc
     
     def __repr__(self):
         return '(%s, %s)' % (self.x, self.y)
     
     def __add__(self, other):
         if isinstance(other, Loc):
-            return Loc(self.x+other.x, self.y+other.y)
-        return Loc(self.x+other[0], self.y+other[1])
+            return Loc((self.x+other.x, self.y+other.y))
+        return Loc((self.x+other[0], self.y+other[1]))
     
     def __sub__(self, other):
-        return Loc(self.x-other.x, self.y-other.y)
+        return Loc((self.x-other.x, self.y-other.y))
     
     def __neg__(self):
-        return Loc(-self.x, -self.y)
+        return Loc((-self.x, -self.y))
     
     def __mul__(self, factor):
-        return Loc(self.x*factor, self.y*factor)
+        return Loc((self.x*factor, self.y*factor))
     
     def __div__(self, factor):
-        return Loc(float(self.x/factor), float(self.y/factor))
+        return Loc((float(self.x/factor), float(self.y/factor)))
     
     def __eq__(self, other):
         if isinstance(other, Loc):

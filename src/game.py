@@ -117,10 +117,10 @@ class Game(object):
 
     def generateMob(self, mob):
         w, h = self.level.getSize()
-        loc = Loc(0, 0)
+        loc = Loc()
         m = mob()
         while not self.level.isClear(loc):
-            loc = Loc(random.randrange(w), random.randrange(h))
+            loc = Loc((random.randrange(w), random.randrange(h)))
             print loc
             m.loc = loc
         if self.beacon:
@@ -194,7 +194,7 @@ class Game(object):
                     else:
                         if event.button==1:
                             l = x, y = self.mapLocByPos(event.pos)
-                            targetLoc = Loc(x, y)
+                            targetLoc = Loc((x, y))
                             if self.beacon:
                                 self.beacon.moveTo(targetLoc)
                             else:
@@ -283,8 +283,7 @@ class Game(object):
         logging.debug('Resource path: %s' % self.resourcePath)
         Map.resourcePath = self.resourcePath
         try:
-            self.level = Map.load('nomap.p')
-            #self.level = Map.load('map.p')
+            self.level = Map.load('map.p', self)
             logging.debug(self.level)
         except IOError:
             logging.debug('Generating map')

@@ -50,6 +50,14 @@ class PathFinder(object):
     def printGrid(self, grid):
         for i in range(self.height):
             print [c for c in grid[self.width*i:self.width*(i+1)]]
+
+    def isVisible(self, sourceTile, destTile):
+        losFunc = self.level.losGridCellsStrict
+        for cell in losFunc(sourceTile, destTile):
+            if self.level.blocksVision(self.level.getTile(cell)):
+                return False
+        return True
+        
     
     def generatePaths(self):
         self.costsGrid = [self.blockedCost] * len(self.level.grid)
@@ -57,6 +65,7 @@ class PathFinder(object):
         w, h = self.width, self.height
         self.setCost(self.target, 0)
         done = False
+        # create initial path - 4 cardinal directions
         while not done:
             done = True
             for x in range(w):
@@ -79,6 +88,31 @@ class PathFinder(object):
             #self.printGrid(self.costsGrid)
             #self.printGrid(self.movesGrid)
             
+
+        # streamline paths - set target of each cell to farthest cell down path that has LOS
+        done = False
+        while not done:
+            done = True
+            for x in range(w):
+                for y in range(h):
+                    cost = self.costsGrid[w*y + x]
+                    if cost != self.blockedCost:
+                        l1 = (x, y)
+                        l2 = self.getMove(l1)
+                        if l2:
+                            while l2 and self.isVisible(l1, l2):
+                                target = l2
+                                l2 = self.getMove(l2)
+                            l1 = Loc(l1)
+                            target = Loc(target)
+                            targetCost = self.costsGrid[w*target.y + target.x]
+                            incCost = l1.distanceTo(target)
+                            cost = targetCost + incCost
+                            self.setCost(l1.loc, cost)
+                            self.setMove(l1.loc, target.loc)
+            #self.printGrid(self.level.grid)
+            #self.printGrid(self.costsGrid)
+            #self.printGrid(self.movesGrid)
         
     def setStart(self, start):
         self.start = start
