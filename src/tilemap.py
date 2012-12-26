@@ -361,7 +361,9 @@ class Map(object):
             self.mobs = pygame.sprite.Group()
             del data['other']
             self.sortMobs()
-        pickle.dump(data, open(Map.resourcePath+self.filename, 'wb'))
+        out = open(Map.resourcePath+self.filename, 'wb')
+        pickle.dump(data, out)
+        out.close()
         t1 = time.time()
         logging.debug('Level saved in %f seconds' % (t1-t0))
 
